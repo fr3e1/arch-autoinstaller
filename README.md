@@ -25,3 +25,23 @@ A simple and automated script to install Arch Linux with minimal user input. Thi
    git clone https://github.com/fr3e1/arch-autoinstaller.git
    cd arch-autoinstaller
    ./setup.sh
+
+Configuration
+
+This script is designed to be as simple and straight-forward!
+
+All you have to type:
+
+   - the name of the drive
+   - username and password
+   - timezone
+   
+     That's it!
+
+## Timezone
+
+How to find your timezone:
+``` bash
+timedatectl list-timezones | grep "Country/Region"
+```
+Be sure to replace "Country/Region" accordingly!
