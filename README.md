@@ -21,13 +21,17 @@ NOT FINISHED, STILL TESTING, EXPECT BUGS
 
 ## Usage
 
-1. Boot to your archlinux ISO
-   
-3. Clone this repository:
+1. Install git
+   ``` bash
+   pacman -Sy git
+   ```
+   2. Clone this repository and execute:
    ```bash
    git clone https://github.com/fr3e1/arch-autoinstaller.git
    cd arch-autoinstaller
    ./setup.sh
+   ```
+   3. Follow instructions provided
 
 ## Configuration
 
