@@ -26,7 +26,7 @@ A simple and automated script to install Arch Linux with minimal user input. Thi
    cd arch-autoinstaller
    ./setup.sh
 
-Configuration
+## Configuration
 
 This script is designed to be as simple and straight-forward!
 
