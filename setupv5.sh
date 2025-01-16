@@ -133,5 +133,7 @@ EOF
 umount -R /mnt || echo "Failed to unmount /mnt"
 
 # Cleanup
-echo "Arch Linux installation complete. You can reboot now."
+echo "Arch Linux Is installed. Rebooting in 5 seconds for post setups..."
+sleep 5
+reboot
 
