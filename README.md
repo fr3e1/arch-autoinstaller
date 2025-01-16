@@ -45,3 +45,11 @@ How to find your timezone:
 timedatectl list-timezones | grep "Country/Region"
 ```
 Be sure to replace "Country/Region" accordingly!
+
+## Disclaimer
+
+This script is designed to automatically install arch linux AND automatically configure it with MY configs.
+If you would like to make changes, please go ahead as my configs may be weird for new users, such as esc switched to caps lock 
+
+I am not responsible for any data loss you encounter, so please backup your files!
+
