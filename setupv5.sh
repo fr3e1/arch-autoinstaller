@@ -129,6 +129,8 @@ User=root
 WantedBy=multi-user.target
 EOF
 
+arch-chroot /mnt /setup-chroot.sh
+
 # Final unmount for main partitions
 umount -R /mnt || echo "Failed to unmount /mnt"
 
