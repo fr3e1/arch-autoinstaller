@@ -2,6 +2,9 @@
 
 A simple and automated script to install Arch Linux with minimal user input. This autoinstaller streamlines the installation process while maintaining flexibility for customization.
 
+NOT FINISHED, STILL TESTING, EXPECT BUGS 
+
+
 ## Features
 
 - Automated partitioning and disk setup
