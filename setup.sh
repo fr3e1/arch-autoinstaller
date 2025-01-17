@@ -67,7 +67,7 @@ pacstrap /mnt base linux linux-firmware base-devel grub networkmanager zsh git s
     exit 1
 }
 
-genfstab -U /mnt >> /mnt/etc/fstab
+genfstab /mnt > /mnt/etc/fstab
 
 # Configure the system in chroot
 arch-chroot /mnt /bin/bash <<EOF
@@ -88,7 +88,7 @@ echo "$username:$password" | chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
 # Install and configure GRUB
-grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
+grub-install --efi-directory=/boot
 if [[ $? -ne 0 ]]; then
     echo "Failed to install GRUB. Exiting..."
     exit 1
@@ -105,6 +105,6 @@ umount -R /mnt || echo "Failed to unmount /mnt"
 
 # Cleanup
 echo "Arch Linux is installed. Rebooting in 5 seconds..."
-sleep 5
-reboot
+
+
 
