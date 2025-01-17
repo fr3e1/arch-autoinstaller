@@ -8,6 +8,7 @@ fi
 
 # User input for drive, username, password, and timezone
 read -p "Drive to install Arch on (e.g., sda, nvme0n1): " drive
+read -p "Hostname: " hostname
 read -p "Username: " username
 read -sp "Password: " password
 echo
@@ -62,7 +63,7 @@ mkdir /mnt/boot
 mount "/dev/${drive}1" /mnt/boot || { echo "Failed to mount /dev/${drive}1"; exit 1; }
 
 # Install the base system
-pacstrap /mnt base linux linux-firmware base-devel grub networkmanager zsh git sudo || {
+pacstrap /mnt base linux linux-firmware base-devel efibootmgr grub networkmanager zsh git sudo gdm || {
     echo "Failed to install base system. Exiting..."
     exit 1
 }
@@ -75,7 +76,7 @@ ln -sf /usr/share/zoneinfo/$timezone /etc/localtime
 hwclock --systohc
 
 echo "LANG=en_US.UTF-8" > /etc/locale.conf
-echo "$username-pc" > /etc/hostname
+echo "$hostname" > /etc/hostname
 echo "127.0.0.1 localhost" >> /etc/hosts
 echo "::1 localhost" >> /etc/hosts
 echo "127.0.1.1 $username-pc.localdomain $username-pc" >> /etc/hosts
