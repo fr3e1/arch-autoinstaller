@@ -85,6 +85,8 @@ pacstrap /mnt base linux linux-firmware base-devel efibootmgr grub networkmanage
 genfstab /mnt > /mnt/etc/fstab
 
 # Configure the system in chroot
+
+cp pacman.conf /mnt/etc/pacman.conf
 arch-chroot /mnt /bin/bash <<EOF
 ln -sf /usr/share/zoneinfo/$timezone /etc/localtime
 hwclock --systohc
