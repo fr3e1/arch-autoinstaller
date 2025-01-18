@@ -20,7 +20,7 @@ echo
 read -sp "Retype Password: " validating
 echo
 read -p "Timezone (Region/City): " timezone
-read -p "Install nvidia drivers (y/N): " nvidia
+read -p "Install nvidia drivers (y/N): " nvidia 
 
 # Verify passwords match
 if [[ "$password" != "$validating" ]]; then
@@ -32,7 +32,8 @@ fi
 case "$nvidia" in 
 	[yY][eE][sS]|[yY]) 
 
-		sed -i '16s/.*/nvidia="Y"/' preset.sh
+		sed -i '16s/.*/nvidia="Y"/' preset.sh ;;
+esac
 # Validate the drive
 if [[ ! -b "/dev/$drive" ]]; then
     echo "Invalid drive specified. Exiting..."
@@ -110,9 +111,8 @@ fi
 
 grub-mkconfig -o /boot/grub/grub.cfg
 
-# Installing dots
 
-su - $username -c "./Arch-Hyprland/install.sh
+
 
 # Enable essential services
 systemctl enable NetworkManager
@@ -134,7 +134,7 @@ pacman -Sy bluez-utils brightnessctl hyprlock pipewire pipewire-pulse python ttf
 
 su - $username -c "yes | sh ~/Arch-Hyprland/install.sh"
 su - $username -c "yay -S bluetui rofi-lbonn-wayland-git"
-su - $username -c "sh ~/mechabar/install.sh'
+su - $username -c "sh ~/mechabar/install.sh"
 
 
 sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
