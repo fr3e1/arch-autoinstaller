@@ -18,8 +18,9 @@ read -p "Username: " username
 read -sp "Password: " password
 echo
 read -sp "Retype Password: " validating
+echo
 read -p "Timezone (Region/City): " timezone
-read -p "Install vidia drivers (y/N): " nvidia
+read -p "Install nvidia drivers (y/N): " nvidia
 
 # Verify passwords match
 if [[ "$password" != "$validating" ]]; then
