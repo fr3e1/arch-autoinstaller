@@ -63,7 +63,7 @@ mkdir /mnt/boot
 mount "/dev/${drive}1" /mnt/boot || { echo "Failed to mount /dev/${drive}1"; exit 1; }
 
 # Install the base system
-pacstrap /mnt base linux linux-firmware base-devel efibootmgr grub networkmanager zsh git sudo gdm || {
+pacstrap /mnt base linux linux-firmware base-devel efibootmgr grub networkmanager zsh git sudo gdm hyprland || {
     echo "Failed to install base system. Exiting..."
     exit 1
 }
@@ -99,6 +99,7 @@ grub-mkconfig -o /boot/grub/grub.cfg
 
 # Enable essential services
 systemctl enable NetworkManager
+systemctl enable gdm
 EOF
 
 # Final unmount for main partitions
