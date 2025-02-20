@@ -11,13 +11,15 @@ NOT FINISHED, STILL TESTING, EXPECT BUGS
 - Base system installation with essential packages
 - Configurable user creation and system settings
 - Support for UEFI and BIOS systems
-- Post-install customization options
 
+### Future features:
+- Post-install customization options
+- proper nvme support
 ## Prerequisites
 
 - A bootable Arch Linux installation medium
-- Internet connection
-- A target drive for installation (all data on the target drive will be erased)
+- Stable internet connection
+- A clean target drive for installation (all data on the target drive will be wiped)
 
 ## Usage
 
@@ -29,23 +31,24 @@ NOT FINISHED, STILL TESTING, EXPECT BUGS
    ```bash
    git clone https://github.com/fr3e1/arch-autoinstaller.git
    cd arch-autoinstaller
-   ./setup.sh
+   ./install.sh
    ```
-   3. Follow instructions provided
+   3. Follow further instructions
 
 ## Configuration
+### CHECK OR EDIT THIS FILE BEFORE INSTALLING
+Otherwise, you may not get the system you want!
 
-This script is designed to be as simple and straight-forward!
+Default configs:
+```bash
+TIMEZONE="UTC"
+LOCALE="en_US.UTF-8 UTF-8"
+USERNAME="user"
+DISPLAYMANAGER="gdm"
+DESKTOPMANAGER="hyprland"
+```
 
-All you have to type:
-
-   - the name of the drive
-   - username and password
-   - timezone
-   
-     That's it!
-
-## Timezone
+## Timezone and Locale
 
 How to find your timezone:
 ``` bash
@@ -53,10 +56,12 @@ timedatectl list-timezones | grep "Country/Region"
 ```
 Be sure to replace "Country/Region" accordingly!
 
+How to find your preferred locale:
+```bash
+nano /etc/locale.gen
+```
+You will most likely not need to do this as the default locale is 
+what most people use
+
 ## Disclaimer
-
-This script is designed to automatically install arch linux AND automatically configure it with MY configs.
-If you would like to make changes, please go ahead as my configs may be weird for new users, such as esc switched to caps lock 
-
 I am not responsible for any data loss you encounter, so please backup your files!
-
