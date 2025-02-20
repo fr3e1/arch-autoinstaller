@@ -1,0 +1,31 @@
+#/bin/bash
+PACSTRAP=$(<pacstrap)
+
+# you can look for yours on /usr/share/zoneinfo
+# example syntax: Region/City
+# default: UTC
+
+TIMEZONE="UTC"
+
+# locales can be found on /etc/locale.gen
+# default: en_US.UTF-8 UTF-8
+
+LOCALE="en_US.UTF-8 UTF-8"
+
+# to add a password on your account, do the following command:
+# passwd (your username)
+
+USERNAME="user"
+
+# this is for your display manager. search online for the one you prefer.
+# examples: sddm, gdm, lightdm, ly
+
+DISPLAYMANAGER="sddm"
+
+# this is what you will be using as a desktop. 
+# search online for the one you prefer
+# note: you can also add additional dependencies for the dm you want. 
+# for example: "xfce4 xfce4-goodies"
+# examples: hyprland, xfce4, sway, gnome, plasma
+
+DESKTOPMANAGER="hyprland"
