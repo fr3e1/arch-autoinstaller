@@ -1,5 +1,6 @@
 #/bin/bash
 PACSTRAP=$(<pacstrap)
+AAARCH=$([ -d /sys/firmware/efi ] && echo "UEFI" || echo "BIOS")
 
 # you can look for yours on /usr/share/zoneinfo
 # example syntax: Region/City
@@ -20,7 +21,7 @@ USERNAME="user"
 # this is for your display manager. search online for the one you prefer.
 # examples: sddm, gdm, lightdm, ly
 
-DISPLAYMANAGER="sddm"
+DISPLAYMANAGER="gdm"
 
 # this is what you will be using as a desktop. 
 # search online for the one you prefer
@@ -29,3 +30,4 @@ DISPLAYMANAGER="sddm"
 # examples: hyprland, xfce4, sway, gnome, plasma
 
 DESKTOPMANAGER="hyprland"
+
