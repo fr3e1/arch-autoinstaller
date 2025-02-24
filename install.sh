@@ -46,28 +46,29 @@ echo -e "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/
 # formatting drive partitions
 yes y | mkfs.ext4 /dev/"$DRIVE"2 
 yes y | mkfs.fat -F 32 /dev/"$DRIVE"1 
-
+clear
 ## mount and pacstrap
 mount /dev/"$DRIVE"2 /mnt 
 mkdir -p /mnt/boot/efi 
 mount /dev/"$DRIVE"1 /mnt/boot/efi 
 # pacstrap
+clear
 if [ $AAARCH == "UEFI" ]; then
 pacstrap /mnt $PACSTRAP $DISPLAYMANAGER $DESKTOPMANAGER efibootmgr
 else
 pacstrap /mnt $PACSTRAP $DISPLAYMANAGER $DESKTOPMANAGER 
 fi
-
+clear
 ## arch-chroot setup
 arch-chroot /mnt /bin/bash <<EOF
-ln -sf /usr/share/zoneinfo/$ZONEINFO /etc/localtime || echo "Failed to make symlink for localtime"
-hwclock --systohc || echo "Failed to run hwclock"
-echo "$LOCALE" >> /etc/locale.gen || echo "Failed to edit locale" 
-locale-gen || echo "Failed to generate locale"
-echo "$HOSTNAME" > /etc/hostname || echo "Failed to set hostname"
-echo "127.0.0.1 localhost" >> /etc/hosts || echo "Failed to set hosts"
-systemctl enable NetworkManager $DISPLAYMANAGER || echo "Failed to enable services"
-grub-install /dev/$DRIVE || echo "Failed to install Grub"
-grub-mkconfig -o /boot/grub/grub.cfg || echo "Failed to generate grub config"
-reboot || echo "Failed to reboot"
+ln -sf /usr/share/zoneinfo/$ZONEINFO /etc/localtime 
+hwclock --systohc
+echo "$LOCALE" >> /etc/locale.gen  
+locale-gen
+echo "$HOSTNAME" > /etc/hostname 
+echo "127.0.0.1 localhost" >> /etc/hosts 
+systemctl enable NetworkManager $DISPLAYMANAGER 
+grub-install /dev/$DRIVE 
+grub-mkconfig -o /boot/grub/grub.cfg 
+reboot 
 EOF
