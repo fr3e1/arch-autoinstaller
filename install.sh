@@ -40,12 +40,12 @@ fi
 
 # wiping drive
 umount /dev/"$DRIVE"* 
-wipefs -a "$DRIVE"
+wipefs -a /dev/"$DRIVE"
 echo -e "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE" 
 
 # formatting drive partitions
 yes | mkfs.ext4 /dev/"$DRIVE"2 
-mkfs.fat -F 32 /dev/"$DRIVE"1 
+yes | mkfs.fat -F 32 /dev/"$DRIVE"1 
 
 ## mount and pacstrap
 mount /dev/"$DRIVE"2 /mnt 
