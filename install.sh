@@ -30,28 +30,27 @@ if [[ ! -b "/dev/$DRIVE" ]]; then
     exit 1
 fi
 
-if [ $(cat $(pwd)/config | md5sum) =  "0a87d0e640588122fb45273f4555610a  -" ]; then  
-    read -p "Config file untouched, would you like to edit and verify? [Y/n]" DEFAULT_CONFIRM
-    if [ $DEFAULT_CONFIRM -e [Yy][Ee][]Ss[] ]; then
-        nano $(pwd)/config
-    fi
-fi
+#COMING SOON
+#if [ $(cat $(pwd)/config | md5sum) =  "0a87d0e640588122fb45273f4555610a  -" ]; then  
+#    read -p "Config file untouched, would you like to edit and verify? [Y/n]" DEFAULT_CONFIRM
+#    if [ $DEFAULT_CONFIRM -e [Yy][Ee][]Ss[] ]; then
+#        nano $(pwd)/config
+#    fi
+#fi
 
 # wiping drive
 umount /dev/"$DRIVE"* 
-wipefs -a "$DRIVE" || echo "Failed to wipe drive, exiting.."; exit 1
-echo -e "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE" || echo "partitioning failed, exiting.."
+wipefs -a "$DRIVE"
+echo -e "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE" 
 
 # formatting drive partitions
-yes | mkfs.ext4 /dev/"$DRIVE"2 || echo "formatting failed, exiting.."; exit 1
-mkfs.fat -F 32 /dev/"$DRIVE"1 || echo "Formatting failed, exiting..";  exit 1
+yes | mkfs.ext4 /dev/"$DRIVE"2 
+mkfs.fat -F 32 /dev/"$DRIVE"1 
 
-echo "Failed to mount drive, exiting.."; exit 1
 ## mount and pacstrap
-mount /dev/"$DRIVE"2 /mnt || echo "Failed to mount drive, exiting.."; exit 1
+mount /dev/"$DRIVE"2 /mnt 
 mkdir -p /mnt/boot/efi 
-mount /dev/"$DRIVE"1 /mnt/boot/efi || echo "Failed to mount drive, exiting.."; exit 1
-
+mount /dev/"$DRIVE"1 /mnt/boot/efi 
 # pacstrap
 if [ $AAARCH == "UEFI" ]; then
 pacstrap /mnt $PACSTRAP $DISPLAYMANAGER $DESKTOPMANAGER efibootmgr
