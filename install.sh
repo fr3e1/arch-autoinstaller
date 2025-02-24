@@ -72,3 +72,4 @@ grub-install /dev/$DRIVE
 grub-mkconfig -o /boot/grub/grub.cfg 
 reboot 
 EOF
+reboot
