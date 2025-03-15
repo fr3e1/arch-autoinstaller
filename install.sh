@@ -45,7 +45,7 @@ while true; do
 	read -s -p "Confirm Password: " passwordver
 	echo 
 
-	if [ "$password" == "passwordver" ]; then
+	if [ "$password" == "$passwordver" ]; then
 		break
 	else
 		echo "Passwords do not match, please try again"
