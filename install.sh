@@ -37,6 +37,22 @@ fi
 #        nano $(pwd)/config
 #    fi
 #fi
+read -p "Enter Username: " USERNAME
+echo
+while true; do
+	read -s -p "Enter Password: " password
+	echo 
+	read -s -p "Confirm Password: " passwordver
+	echo 
+
+	if [ "$password" == "passwordver" ]; then
+		break
+	else
+		echo "Passwords do not match, please try again"
+	fi
+done
+
+
 
 # wiping drive
 umount /dev/"$DRIVE"* 
@@ -60,6 +76,8 @@ pacstrap /mnt $PACSTRAP $DISPLAYMANAGER $DESKTOPMANAGER
 fi
 clear
 ## arch-chroot setup
+
+####DONT FUCK WITH THE SED COMMAND####
 arch-chroot /mnt /bin/bash <<EOF
 ln -sf /usr/share/zoneinfo/$ZONEINFO /etc/localtime 
 hwclock --systohc
@@ -70,7 +88,15 @@ echo "$HOSTNAME" > /etc/hostname
 echo "127.0.0.1 localhost" >> /etc/hosts 
 systemctl enable NetworkManager $DISPLAYMANAGER 
 grub-install /dev/$DRIVE 
-grub-mkconfig -o /boot/grub/grub.cfg 
-reboot 
+grub-mkconfig -o /boot/grub/grub.cfg
+
+useradd -m -G wheel,users,video,audio,usb -s /bin/bash $USERNAME
+echo "$USERNAME:$password" | chpasswd
+
+sed -i 's/^# \(%wheel ALL=(ALL:ALL) ALL\)$/\1/' /etc/sudoers
+visudo -c 
+
 EOF
+
+
 reboot
