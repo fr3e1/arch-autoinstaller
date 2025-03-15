@@ -63,6 +63,7 @@ clear
 arch-chroot /mnt /bin/bash <<EOF
 ln -sf /usr/share/zoneinfo/$ZONEINFO /etc/localtime 
 hwclock --systohc
+genfstab /dev/$DRIVE
 echo "$LOCALE" >> /etc/locale.gen  
 locale-gen
 echo "$HOSTNAME" > /etc/hostname 
