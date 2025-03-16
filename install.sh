@@ -75,13 +75,13 @@ else
 pacstrap /mnt $PACSTRAP $DISPLAYMANAGER $DESKTOPMANAGER 
 fi
 clear
-## arch-chroot setup
+#post-install setup
+####DONT MESS WITH THE SED COMMAND####
 
-####DONT FUCK WITH THE SED COMMAND####
+genfstab /dev/$DRIVE
 arch-chroot /mnt /bin/bash <<EOF
 ln -sf /usr/share/zoneinfo/$ZONEINFO /etc/localtime 
 hwclock --systohc
-genfstab /dev/$DRIVE
 echo "$LOCALE" >> /etc/locale.gen  
 locale-gen
 echo "$HOSTNAME" > /etc/hostname 
@@ -99,4 +99,4 @@ visudo -c
 EOF
 
 
-reboot
+
