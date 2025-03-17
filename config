@@ -16,7 +16,7 @@ LOCALE="en_US.UTF-8 UTF-8"
 # to add a password on your account, do the following command:
 # passwd (your username)
 
-USERNAME="user"
+# USERNAME="user"
 
 # this is for your display manager. search online for the one you prefer.
 # examples: sddm, gdm, lightdm, ly
