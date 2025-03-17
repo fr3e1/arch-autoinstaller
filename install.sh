@@ -70,15 +70,15 @@ mount /dev/"$DRIVE"1 /mnt/boot/efi
 # pacstrap
 clear
 if [ $AAARCH == "UEFI" ]; then
-pacstrap /mnt $PACSTRAP $DISPLAYMANAGER $DESKTOPMANAGER efibootmgr
+	pacstrap /mnt $PACSTRAP $DISPLAYMANAGER $DESKTOPMANAGER efibootmgr
 else
-pacstrap /mnt $PACSTRAP $DISPLAYMANAGER $DESKTOPMANAGER 
+	pacstrap /mnt $PACSTRAP $DISPLAYMANAGER $DESKTOPMANAGER 
 fi
 clear
 #post-install setup
 ####DONT MESS WITH THE SED COMMAND####
 
-genfstab /dev/$DRIVE
+genfstab /mnt > /mnt/etc/fstab
 arch-chroot /mnt /bin/bash <<EOF
 ln -sf /usr/share/zoneinfo/$ZONEINFO /etc/localtime 
 hwclock --systohc
@@ -98,5 +98,6 @@ visudo -c
 
 EOF
 
-
+echo "Installation finished. System will automatically reboot"
+echo "in 10 seconds if left undisturbed."
 
