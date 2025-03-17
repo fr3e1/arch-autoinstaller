@@ -100,4 +100,3 @@ EOF
 
 echo "Installation finished. System will automatically reboot"
 echo "in 10 seconds if left undisturbed."
-
