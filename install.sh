@@ -38,7 +38,7 @@ fi
 #    fi
 #fi
 read -p "Enter Username: " USERNAME
-echo
+echo "Username: $USERNAME"
 while true; do
 	read -s -p "Enter Password: " password
 	echo 
@@ -91,7 +91,7 @@ grub-install /dev/$DRIVE
 grub-mkconfig -o /boot/grub/grub.cfg
 
 useradd -m -G wheel,users,video,audio,usb -s /bin/bash $USERNAME
-echo "$USERNAME:$password" | chpasswd
+echo ""$USERNAME":"$password"" | chpasswd
 
 sed -i 's/^# \(%wheel ALL=(ALL:ALL) ALL\)$/\1/' /etc/sudoers
 visudo -c 
