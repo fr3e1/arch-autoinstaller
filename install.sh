@@ -70,9 +70,9 @@ mount /dev/"$DRIVE"1 /mnt/boot/efi
 # pacstrap
 clear
 if [ $AAARCH == "UEFI" ]; then
-	pacstrap /mnt $PACSTRAP $DISPLAYMANAGER $DESKTOPMANAGER efibootmgr
+	pacstrap /mnt $PACSTRAP efibootmgr
 else
-	pacstrap /mnt $PACSTRAP $DISPLAYMANAGER $DESKTOPMANAGER 
+	pacstrap /mnt $PACSTRAP  
 fi
 clear
 #post-install setup
@@ -95,7 +95,7 @@ echo ""$USERNAME":"$password"" | chpasswd
 
 sed -i 's/^# \(%wheel ALL=(ALL:ALL) ALL\)$/\1/' /etc/sudoers
 visudo -c 
-
+pacman -Syu $DISPLAYMANAGER $DESKTOPMANAGER
 EOF
 
 echo "Installation finished. System will automatically reboot"
