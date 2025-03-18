@@ -97,7 +97,7 @@ systemctl enable NetworkManager $DISPLAYMANAGER
 grub-install /dev/$DRIVE 
 grub-mkconfig -o /boot/grub/grub.cfg
 
-useradd -m -G wheel,users,video,audio,usb -s /bin/bash $USERNAME
+useradd -m -G wheel,users,video,audio -s /bin/bash $USERNAME
 echo ""$USERNAME":"$password"" | chpasswd
 
 sed -i 's/^# \(%wheel ALL=(ALL:ALL) ALL\)$/\1/' /etc/sudoers
