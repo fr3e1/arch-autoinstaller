@@ -1,5 +1,6 @@
 #/bin/bash
 source "$(pwd)/config"
+exec > >(tee -a script.log) 2>&1
 
 # root check
 if [[ $EUID -ne 0 ]]; then
@@ -74,12 +75,12 @@ if [ $AAARCH == "UEFI" ]; then
 else
 	pacstrap /mnt $PACSTRAP  
 fi
-clear
+
 
 missing_pkgs=$(pacman -Q $(<pacstrap) 2>&1 | awk -F"'" '/error: package/ {print $2}')
 [[ -n "$missing_pkgs" ]]
 
-arch-chroot /mnt /bin/bash -c "pacman -Sy $missing_pkgs"
+arch-chroot /mnt /bin/bash -c "pacman -Sy --noconfirm $missing_pkgs"
 
 #post-install setup
 ####DONT MESS WITH THE SED COMMAND####
@@ -101,7 +102,7 @@ echo ""$USERNAME":"$password"" | chpasswd
 
 sed -i 's/^# \(%wheel ALL=(ALL:ALL) ALL\)$/\1/' /etc/sudoers
 visudo -c 
-pacman -Syu $DISPLAYMANAGER $DESKTOPMANAGER
+pacman -Syu --noconfirm $DISPLAYMANAGER $DESKTOPMANAGER
 EOF
 
 echo "Installation finished. System will automatically reboot"
