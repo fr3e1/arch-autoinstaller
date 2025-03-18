@@ -75,6 +75,12 @@ else
 	pacstrap /mnt $PACSTRAP  
 fi
 clear
+
+missing_pkgs=$(pacman -Q $(<pacstrap) 2>&1 | awk -F"'" '/error: package/ {print $2}')
+[[ -n "$missing_pkgs" ]]
+
+arch-chroot /mnt /bin/bash -c "pacman -Sy $missing_pkgs"
+
 #post-install setup
 ####DONT MESS WITH THE SED COMMAND####
 
