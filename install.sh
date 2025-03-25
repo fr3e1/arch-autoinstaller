@@ -88,6 +88,7 @@ arch-chroot /mnt /bin/bash -c "pacman -Sy --noconfirm $missing_pkgs"
 genfstab /mnt > /mnt/etc/fstab
 arch-chroot /mnt /bin/bash <<EOF
 ln -sf /usr/share/zoneinfo/$ZONEINFO /etc/localtime 
+pacman -Syu --noconfirm $DISPLAYMANAGER $DESKTOPMANAGER
 hwclock --systohc
 echo "$LOCALE" >> /etc/locale.gen  
 locale-gen
@@ -102,7 +103,6 @@ echo ""$USERNAME":"$password"" | chpasswd
 
 sed -i 's/^# \(%wheel ALL=(ALL:ALL) ALL\)$/\1/' /etc/sudoers
 visudo -c 
-pacman -Syu --noconfirm $DISPLAYMANAGER $DESKTOPMANAGER
 EOF
 
 echo "Installation finished. System will automatically reboot"
