@@ -29,5 +29,5 @@ DISPLAYMANAGER="gdm"
 # for example: "xfce4 xfce4-goodies"
 # examples: hyprland, xfce4, sway, gnome, plasma
 
-DESKTOPMANAGER="hyprland"
+DESKTOPMANAGER="plasma"
 

@@ -21,7 +21,7 @@ echo "please pick a drive to install archlinux to:"
 echo
 lsblk
 echo
-read -p "drive (example: sda, sdb, nvme0n1, etc.): " DRIVE
+read -p "drive (example: sda, sdb, etc.): " DRIVE
 
 
 # drive validation 
