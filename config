@@ -21,7 +21,7 @@ LOCALE="en_US.UTF-8 UTF-8"
 # this is for your display manager. search online for the one you prefer.
 # examples: sddm, gdm, lightdm, ly
 
-DISPLAYMANAGER="gdm"
+DISPLAYMANAGER="sddm"
 
 # this is what you will be using as a desktop. 
 # search online for the one you prefer
@@ -29,5 +29,5 @@ DISPLAYMANAGER="gdm"
 # for example: "xfce4 xfce4-goodies"
 # examples: hyprland, xfce4, sway, gnome, plasma
 
-DESKTOPMANAGER="plasma"
+DESKTOPMANAGER="xfce4 xfce4-goodies"
 
