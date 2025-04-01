@@ -21,6 +21,19 @@ NOT FINISHED, STILL TESTING, EXPECT BUGS
 - Stable internet connection
 - A clean target drive for installation (all data on the target drive will be wiped)
 
+# Configuration
+### CHECK OR EDIT THIS FILE BEFORE INSTALLING
+Otherwise, you may not get the system you truly want!
+
+Default configs:
+```bash
+TIMEZONE="UTC"
+LOCALE="en_US.UTF-8 UTF-8"
+USERNAME="user"
+DISPLAYMANAGER="sddm"
+DESKTOPMANAGER="xfce4 xfce4-goodies"
+```
+
 # Usage
 
 1. Install git
@@ -45,21 +58,6 @@ NOT FINISHED, STILL TESTING, EXPECT BUGS
    ```bash
    pacman -Sy archlinux-keyring
    ```
-  
-      
-
-# Configuration
-### CHECK OR EDIT THIS FILE BEFORE INSTALLING
-Otherwise, you may not get the system you want!
-
-Default configs:
-```bash
-TIMEZONE="UTC"
-LOCALE="en_US.UTF-8 UTF-8"
-USERNAME="user"
-DISPLAYMANAGER="gdm"
-DESKTOPMANAGER="hyprland"
-```
 
 # Timezone and Locale
 
