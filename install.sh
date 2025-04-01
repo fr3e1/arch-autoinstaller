@@ -105,5 +105,6 @@ sed -i 's/^# \(%wheel ALL=(ALL:ALL) ALL\)$/\1/' /etc/sudoers
 visudo -c 
 EOF
 
-echo "Installation finished. System will automatically reboot"
-echo "in 10 seconds if left undisturbed."
+echo "System will reboot in 10 seconds. Press any key to cancel..."
+read -n 1 -t 10 input && echo "Reboot canceled." || cp script.log /mount/home/$USERNAME && sudo reboot
+
