@@ -5,7 +5,7 @@ A simple and automated script to install Arch Linux with minimal user input. Thi
 NOT FINISHED, STILL TESTING, EXPECT BUGS 
 
 
-## Features
+# Features
 
 - Automated partitioning and disk setup
 - Base system installation with essential packages
@@ -15,13 +15,13 @@ NOT FINISHED, STILL TESTING, EXPECT BUGS
 ### Future features:
 - Post-install customization options
 - proper nvme support
-## Prerequisites
+# Prerequisites
 
 - A bootable Arch Linux installation medium
 - Stable internet connection
 - A clean target drive for installation (all data on the target drive will be wiped)
 
-## Usage
+# Usage
 
 1. Install git
    ``` bash
@@ -35,7 +35,20 @@ NOT FINISHED, STILL TESTING, EXPECT BUGS
    ```
    3. Follow further instructions
 
-## Configuration
+  ## Common issue:
+  If you are getting errors when installing git, it may be caused by outdated rings.
+  To mitigate, try these:
+   ```bash
+   pacman-key --init
+   pacman-key --populate
+   ```
+   ```bash
+   pacman -Sy archlinux-keyring
+   ```
+  
+      
+
+# Configuration
 ### CHECK OR EDIT THIS FILE BEFORE INSTALLING
 Otherwise, you may not get the system you want!
 
@@ -48,7 +61,7 @@ DISPLAYMANAGER="gdm"
 DESKTOPMANAGER="hyprland"
 ```
 
-## Timezone and Locale
+# Timezone and Locale
 
 How to find your timezone:
 ``` bash
@@ -63,5 +76,5 @@ nano /etc/locale.gen
 You will most likely not need to do this as the default locale is 
 what most people use
 
-## Disclaimer
+# Disclaimer
 I am not responsible for any data loss you encounter, so please backup your files!
