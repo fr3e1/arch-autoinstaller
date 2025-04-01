@@ -77,4 +77,4 @@ You will most likely not need to do this as the default locale is
 what most people use
 
 # Disclaimer
-I am not responsible for any data loss you encounter, so please backup your files!
+### I am not responsible for any data loss you encounter, so please backup your files!
