@@ -69,6 +69,8 @@ mount /dev/"$DRIVE"2 /mnt
 mkdir -p /mnt/boot/efi 
 mount /dev/"$DRIVE"1 /mnt/boot/efi 
 # pacstrap
+sudo sed -i 's/^#\?ParallelDownloads.*/ParallelDownloads = 9999/' /etc/pacman.conf
+
 clear
 if [ $AAARCH == "UEFI" ]; then
 	pacstrap /mnt $PACSTRAP efibootmgr
