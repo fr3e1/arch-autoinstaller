@@ -19,7 +19,7 @@ echo
 ## user requirements
 echo "please pick a drive to install archlinux to:"
 echo
-lsblk
+lsblk -d -o NAME,MODEL,SIZE,TRAN | grep -E '^(sd|nvme)'
 echo
 read -p "drive (example: sda, sdb, etc.): " DRIVE
 
@@ -60,14 +60,24 @@ umount /dev/"$DRIVE"*
 wipefs -a /dev/"$DRIVE"
 echo -e "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE" 
 
+
+# Determine partition suffix
+if [[ "$DRIVE" == nvme* ]]; then
+    PARTITION1="/dev/${DRIVE}p1"
+    PARTITION2="/dev/${DRIVE}p2"
+else
+    PARTITION1="/dev/${DRIVE}1"
+    PARTITION2="/dev/${DRIVE}2"
+fi
+
 # formatting drive partitions
-yes y | mkfs.ext4 /dev/"$DRIVE"2 
-yes y | mkfs.fat -F 32 /dev/"$DRIVE"1 
+yes y | mkfs.ext4 $PARTITION2 
+yes y | mkfs.fat -F 32 $PARTITION1 
 clear
-## mount and pacstrap
-mount /dev/"$DRIVE"2 /mnt 
+# mount and pacstrap
+mount $PARTITION2 /mnt 
 mkdir -p /mnt/boot/efi 
-mount /dev/"$DRIVE"1 /mnt/boot/efi 
+mount $PARTITION1 /mnt/boot/efi 
 # pacstrap
 sudo sed -i 's/^#\?ParallelDownloads.*/ParallelDownloads = 9999/' /etc/pacman.conf
 
@@ -108,5 +118,5 @@ visudo -c
 EOF
 
 echo "System will reboot in 10 seconds. Press any key to cancel..."
-read -n 1 -t 10 input && echo "Reboot canceled." || cp script.log /mount/home/$USERNAME && sudo reboot
+read -n 1 -t 10 input && echo "Reboot canceled." || cp script.log /mnt/home/$USERNAME && sudo reboot
 
