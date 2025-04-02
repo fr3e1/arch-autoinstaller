@@ -106,10 +106,17 @@ echo "$LOCALE" >> /etc/locale.gen
 locale-gen
 echo "$HOSTNAME" > /etc/hostname 
 echo "127.0.0.1 localhost" >> /etc/hosts 
-systemctl enable NetworkManager $DISPLAYMANAGER 
-grub-install /dev/$DRIVE 
-grub-mkconfig -o /boot/grub/grub.cfg
+systemctl enable NetworkManager $DISPLAYMANAGER
 
+# Install GRUB bootloader
+if [[ "$DRIVE" == nvme* ]]; then
+    grub-install --target=x86_64-efi --efi-directory=/mnt/boot/efi --bootloader-id=GRUB --recheck /dev/"$DRIVE"
+else
+    grub-install --target=i386-pc /dev/"$DRIVE"
+fi
+
+# Generate GRUB configuration
+grub-mkconfig -o /boot/grub/grub.cfg
 useradd -m -G wheel,users,video,audio -s /bin/bash $USERNAME
 echo ""$USERNAME":"$password"" | chpasswd
 
@@ -118,5 +125,5 @@ visudo -c
 EOF
 
 echo "System will reboot in 10 seconds. Press any key to cancel..."
-read -n 1 -t 10 input && echo "Reboot canceled." || cp script.log /mnt/home/$USERNAME && sudo reboot
+read -n 1 -t 10 input && echo "Reboot canceled." || reboot
 
