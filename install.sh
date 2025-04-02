@@ -1,6 +1,11 @@
 #/bin/bash
 source "$(pwd)/config"
-exec > >(tee -a script.log) 2>&1
+TMP_LOG="/tmp/script.log"
+FINAL_LOG="/mnt/script/log/script.log"
+MOUNT_POINT="/mnt/logs"
+
+exec > >(tee -a "${TMP_LOG}") 2>&1
+
 
 # root check
 if [[ $EUID -ne 0 ]]; then
@@ -11,9 +16,9 @@ clear
 # arch check
  
 if [ $AAARCH == "UEFI" ]; then
-     echo "UEFI MODE"
+     echo "${GREEN}UEFI MODE"
 else
-    echo "BIOS MODE"
+    echo "${RED}BIOS MODE"
 fi
 echo
 ## user requirements
@@ -27,7 +32,7 @@ read -p "drive (example: sda, sdb, etc.): " DRIVE
 # drive validation 
 
 if [[ ! -b "/dev/$DRIVE" ]]; then
-    echo "Invalid drive specified. Exiting..."
+    echo "${RED}Invalid drive specified. Exiting..."
     exit 1
 fi
 
@@ -56,6 +61,7 @@ done
 
 
 # wiping drive
+echo "${GREEN}WIPING DRIVE"
 umount /dev/"$DRIVE"* 
 wipefs -a /dev/"$DRIVE"
 echo -e "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE" 
@@ -71,14 +77,24 @@ else
 fi
 
 # formatting drive partitions
+echo "${GREEN}FORMATTING AND WIPING DRIVE"
 yes y | mkfs.ext4 $PARTITION2 
 yes y | mkfs.fat -F 32 $PARTITION1 
 clear
+
 # mount and pacstrap
+echo "${GREEN}MOUNTING DRIVE PARTITIONS"
 mount $PARTITION2 /mnt 
 mkdir -p /mnt/boot/efi 
 mount $PARTITION1 /mnt/boot/efi 
+mkdir -p /mnt/logs
+cat "$TMP_LOG" >> "$FINAL_LOG"
+exec > >(tee -a "$FINAL_LOG") 2>&1
+echo "${GREEN}Logging moved to $FINAL_LOG"
+
+
 # pacstrap
+echo "${GREEN}INITIATING PACSTRAP"
 sudo sed -i 's/^#\?ParallelDownloads.*/ParallelDownloads = 9999/' /etc/pacman.conf
 
 clear
@@ -88,7 +104,6 @@ else
 	pacstrap /mnt $PACSTRAP  
 fi
 
-
 missing_pkgs=$(pacman -Q $(<pacstrap) 2>&1 | awk -F"'" '/error: package/ {print $2}')
 [[ -n "$missing_pkgs" ]]
 
@@ -96,9 +111,10 @@ arch-chroot /mnt /bin/bash -c "pacman -Sy --noconfirm $missing_pkgs"
 
 #post-install setup
 ####DONT MESS WITH THE SED COMMAND####
-
-genfstab -U /mnt 
+echo "${GREEN}GENERATING FSTAB:"
+echo "${GREEN}$(genfstab -U /mnt)" 
 genfstab -U /mnt > /mnt/etc/fstab
+echo "${GREEN}INITIATING FSTAB SETUPS"
 arch-chroot /mnt /bin/bash <<EOF
 ln -sf /usr/share/zoneinfo/$ZONEINFO /etc/localtime 
 pacman -Syu --noconfirm $DISPLAYMANAGER $DESKTOPMANAGER
@@ -125,6 +141,6 @@ sed -i 's/^# \(%wheel ALL=(ALL:ALL) ALL\)$/\1/' /etc/sudoers
 visudo -c 
 EOF
 
-echo "System will reboot in 10 seconds. Press any key to cancel..."
-read -n 1 -t 10 input && echo "Reboot canceled." || reboot
+echo "${GREEN}System will reboot in 10 seconds. Press any key to cancel..."
 
+read -n 1 -t 10 input && echo "Reboot canceled." || reboot
