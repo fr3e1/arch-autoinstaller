@@ -97,7 +97,8 @@ arch-chroot /mnt /bin/bash -c "pacman -Sy --noconfirm $missing_pkgs"
 #post-install setup
 ####DONT MESS WITH THE SED COMMAND####
 
-genfstab /mnt > /mnt/etc/fstab
+genfstab -U /mnt 
+genfstab -U /mnt > /mnt/etc/fstab
 arch-chroot /mnt /bin/bash <<EOF
 ln -sf /usr/share/zoneinfo/$ZONEINFO /etc/localtime 
 pacman -Syu --noconfirm $DISPLAYMANAGER $DESKTOPMANAGER

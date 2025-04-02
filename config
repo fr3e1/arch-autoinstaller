@@ -1,7 +1,8 @@
 #/bin/bash
+GREEN='\033[0;32m' 
+RED='\033[0;31m'
 PACSTRAP=$(<pacstrap)
 AAARCH=$([ -d /sys/firmware/efi ] && echo "UEFI" || echo "BIOS")
-
 # you can look for yours on /usr/share/zoneinfo
 # example syntax: Region/City
 # default: UTC
