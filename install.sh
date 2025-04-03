@@ -1,9 +1,9 @@
 #/bin/bash
 source "$(pwd)/config"
 
-GREEN='\033[0;32m' 
-RED='\033[0;31m'
-
+GREEN='\e[32m' 
+RED='\e[31m'
+RESET='\e[0m'
 TMP_LOG="/tmp/script.log"
 FINAL_LOG="/mnt/script/log/script.log"
 MOUNT_POINT="/mnt/logs"
@@ -20,9 +20,9 @@ clear
 # arch check
  
 if [ $AAARCH == "UEFI" ]; then
-     echo "${GREEN}UEFI MODE"
+     echo "${GREEN}UEFI MODE$RESET"
 else
-    echo "${RED}BIOS MODE"
+    echo "${RED}BIOS MODE$RESET"
 fi
 echo
 ## user requirements
@@ -36,7 +36,7 @@ read -p "drive (example: sda, sdb, etc.): " DRIVE
 # drive validation 
 
 if [[ ! -b "/dev/$DRIVE" ]]; then
-    echo "${RED}Invalid drive specified. Exiting..."
+    echo "${RED}Invalid drive specified. Exiting...$RESET"
     exit 1
 fi
 
@@ -65,7 +65,7 @@ done
 
 
 # wiping drive
-echo "${GREEN}WIPING DRIVE"
+echo "${GREEN}WIPING DRIVE$RESET"
 umount /dev/"$DRIVE"* 
 wipefs -a /dev/"$DRIVE"
 echo -e "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE" 
@@ -94,11 +94,11 @@ mount $PARTITION1 /mnt/boot/efi
 mkdir -p /mnt/logs
 cat "$TMP_LOG" >> "$FINAL_LOG"
 exec > >(tee -a "$FINAL_LOG") 2>&1
-echo "${GREEN}Logging moved to $FINAL_LOG"
+echo "${GREEN}Logging moved to ${FINAL_LOG}${RESET}"
 
 
 # pacstrap
-echo "${GREEN}INITIATING PACSTRAP"
+echo "${GREEN}INITIATING PACSTRAP$RESET"
 sudo sed -i 's/^#\?ParallelDownloads.*/ParallelDownloads = 9999/' /etc/pacman.conf
 
 clear
@@ -115,10 +115,10 @@ arch-chroot /mnt /bin/bash -c "pacman -Sy --noconfirm $missing_pkgs"
 
 #post-install setup
 ####DONT MESS WITH THE SED COMMAND####
-echo "${GREEN}GENERATING FSTAB:"
-echo "${GREEN}$(genfstab -U /mnt)" 
+echo "${GREEN}GENERATING FSTAB:$RESET"
+echo "${GREEN}$(genfstab -U /mnt)$RESET" 
 genfstab -U /mnt > /mnt/etc/fstab
-echo "${GREEN}INITIATING FSTAB SETUPS"
+echo "${GREEN}INITIATING CHROOT SETUPS$RESET"
 arch-chroot /mnt /bin/bash <<EOF
 ln -sf /usr/share/zoneinfo/$ZONEINFO /etc/localtime 
 pacman -Syu --noconfirm $DISPLAYMANAGER $DESKTOPMANAGER
@@ -131,7 +131,7 @@ systemctl enable NetworkManager $DISPLAYMANAGER
 
 # Install GRUB bootloader
 if [[ "$DRIVE" == nvme* ]]; then
-    grub-install --target=x86_64-efi --efi-directory=/mnt/boot/efi --bootloader-id=GRUB --recheck /dev/"$DRIVE"
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB --recheck /dev/"$DRIVE"
 else
     grub-install --target=i386-pc /dev/"$DRIVE"
 fi
