@@ -140,7 +140,10 @@ echo ""$USERNAME":"$password"" | chpasswd
 sed -i 's/^# \(%wheel ALL=(ALL:ALL) ALL\)$/\1/' /etc/sudoers
 visudo -c 
 EOF
+echo "${GREEN}INTSALLATION FINISHED, LOG COPIES CAN BE FOUND AT:"
+echo "${TMP_LOG}"
+echo "${FINAL_LOG}"
 
-echo "${GREEN}System will reboot in 10 seconds. Press any key to cancel..."
+echo "System will reboot in 10 seconds. Press any key to cancel..."
 
 read -n 1 -t 10 input && echo "Reboot canceled." || reboot
