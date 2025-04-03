@@ -1,5 +1,9 @@
 #/bin/bash
 source "$(pwd)/config"
+
+GREEN='\033[0;32m' 
+RED='\033[0;31m'
+
 TMP_LOG="/tmp/script.log"
 FINAL_LOG="/mnt/script/log/script.log"
 MOUNT_POINT="/mnt/logs"
