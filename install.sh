@@ -7,7 +7,7 @@ RESET='\e[0m'
 TMP_LOG="/tmp/script.log"
 FINAL_LOG="/mnt/script/log/script.log"
 MOUNT_POINT="/mnt/logs"
-
+ARCHCHECK=$([ ls -d /sys/firmware/efi ] && echo "UEFI" || echo "BIOS")
 exec > >(tee -a "${TMP_LOG}") 2>&1
 
 
@@ -19,7 +19,7 @@ fi
 clear
 # arch check
  
-if [ $AAARCH == "UEFI" ]; then
+if [ $ARCHCHECK == "UEFI" ]; then
      echo "${GREEN}UEFI MODE$RESET"
 else
     echo "${RED}BIOS MODE$RESET"
@@ -71,7 +71,7 @@ wipefs -a /dev/"$DRIVE"
 echo -e "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE" 
 
 
-# Determine partition suffix
+# determine partition suffix
 if [[ "$DRIVE" == nvme* ]]; then
     PARTITION1="/dev/${DRIVE}p1"
     PARTITION2="/dev/${DRIVE}p2"
@@ -130,11 +130,12 @@ echo "127.0.0.1 localhost" >> /etc/hosts
 systemctl enable NetworkManager $DISPLAYMANAGER
 
 # Install GRUB bootloader
-if [[ "$DRIVE" == nvme* ]]; then
-    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB --recheck /dev/"$DRIVE"
+
+if [ $ARCHCHECK == "UEFI" ]; then
+grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB /dev/"$DRIVE"
+
 else
-    grub-install --target=i386-pc /dev/"$DRIVE"
-fi
+grub-install --efi-directory=/boot/efi /dev/"$DRIVE"
 
 # Generate GRUB configuration
 grub-mkconfig -o /boot/grub/grub.cfg
@@ -150,4 +151,3 @@ echo "${FINAL_LOG}"
 
 echo "System will reboot in 10 seconds. Press any key to cancel..."
 
-read -n 1 -t 10 input && echo "Reboot canceled." || reboot
