@@ -102,7 +102,7 @@ echo "${GREEN}INITIATING PACSTRAP$RESET"
 sudo sed -i 's/^#\?ParallelDownloads.*/ParallelDownloads = 9999/' /etc/pacman.conf
 
 clear
-if [ $AAARCH == "UEFI" ]; then
+if [ $ARCHCHECK == "UEFI" ]; then
 	pacstrap /mnt $PACSTRAP efibootmgr
 else
 	pacstrap /mnt $PACSTRAP  
