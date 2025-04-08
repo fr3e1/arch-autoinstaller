@@ -1,4 +1,4 @@
-#/bin/bash
+#bin/bash
 source "$(pwd)/config"
 
 GREEN='\e[32m' 
@@ -7,7 +7,7 @@ RESET='\e[0m'
 TMP_LOG="/tmp/script.log"
 FINAL_LOG="/mnt/script/log/script.log"
 MOUNT_POINT="/mnt/logs"
-ARCHCHECK=$([ ls -d /sys/firmware/efi ] && echo "UEFI" || echo "BIOS")
+ARCHCHECK=$([ -d /sys/firmware/efi ] && echo "UEFI" || echo "BIOS")
 exec > >(tee -a "${TMP_LOG}") 2>&1
 
 
@@ -131,14 +131,11 @@ systemctl enable NetworkManager $DISPLAYMANAGER
 
 # Install GRUB bootloader
 
-if [ $ARCHCHECK == "UEFI" ]; then
-grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB /dev/"$DRIVE"
 
-else
-grub-install --efi-directory=/boot/efi /dev/"$DRIVE"
+grub-install --target=x86_64-efi /dev/"$DRIVE"
 
-# Generate GRUB configuration
 grub-mkconfig -o /boot/grub/grub.cfg
+
 useradd -m -G wheel,users,video,audio -s /bin/bash $USERNAME
 echo ""$USERNAME":"$password"" | chpasswd
 
