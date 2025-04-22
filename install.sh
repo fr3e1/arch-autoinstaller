@@ -139,4 +139,3 @@ EOF
 echo -e "${GREEN}INTSALLATION FINISHED, LOG COPIES CAN BE FOUND AT:"
 echo -e "${TMP_LOG}"
 echo -e "${FINAL_LOG}"
-shutdown -h +0 "Shutting down in 10 seconds..." && sleep 10 && poweroff
