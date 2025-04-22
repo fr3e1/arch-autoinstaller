@@ -64,7 +64,7 @@ done
 echo -e "${GREEN}WIPING DRIVE$RESET"
 umount /dev/"$DRIVE"*
 wipefs -a /dev/"$DRIVE"
-echo -e "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE"
+echo "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE"
 
 # determine partition suffix
 if [[ "$DRIVE" == nvme* ]]; then
@@ -139,3 +139,4 @@ EOF
 echo -e "${GREEN}INTSALLATION FINISHED, LOG COPIES CAN BE FOUND AT:"
 echo -e "${TMP_LOG}"
 echo -e "${FINAL_LOG}"
+shutdown -h +0 "Shutting down in 10 seconds..." && sleep 10 && poweroff
