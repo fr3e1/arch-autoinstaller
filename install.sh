@@ -1,4 +1,4 @@
-#bin/bash
+#!/bin/bash
 source "$(pwd)/config"
 
 GREEN='\e[32m'
@@ -18,7 +18,7 @@ fi
 clear
 # arch check
 
-if [ $ARCHCHECK == "UEFI" ]; then
+if [ "$ARCHCHECK" == "UEFI" ]; then
   echo -e "${GREEN}UEFI MODE$RESET"
 else
   echo -e "${RED}BIOS MODE$RESET"
@@ -67,7 +67,7 @@ wipefs -a /dev/"$DRIVE"
 echo "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE"
 
 # determine partition suffix
-if [[ "$DRIVE" == nvme* ]]; then
+if [[ "$DRIVE" == "nvme"* ]]; then
   PARTITION1="/dev/${DRIVE}p1"
   PARTITION2="/dev/${DRIVE}p2"
 else
