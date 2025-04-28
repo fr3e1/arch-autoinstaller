@@ -64,7 +64,9 @@ done
 echo -e "${GREEN}WIPING DRIVE$RESET"
 umount /dev/"$DRIVE"*
 wipefs -a /dev/"$DRIVE"
-echo "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE"
+#broken apparently:
+#echo "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE"
+echo -e "label: gpt\nstart=2048,size=+100M\nsize=+" | sfdisk --wipe always /dev/"$DRIVE"
 
 # determine partition suffix
 if [[ "$DRIVE" == "nvme"* ]]; then
