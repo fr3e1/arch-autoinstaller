@@ -117,7 +117,7 @@ genfstab -U /mnt >/mnt/etc/fstab
 echo -e "${GREEN}INITIATING CHROOT SETUPS$RESET"
 arch-chroot /mnt /bin/bash <<EOF
 ln -sf /usr/share/zoneinfo/$ZONEINFO /etc/localtime 
-pacman -Syu --noconfirm $DISPLAYMANAGER $DESKTOPMANAGER
+pacman -Syu --noconfirm $ADDITIONAL_PACKAGES $DISPLAYMANAGER $DESKTOPMANAGER
 hwclock --systohc
 echo "$LOCALE" >> /etc/locale.gen  
 locale-gen
@@ -126,10 +126,7 @@ echo "127.0.0.1 localhost" >> /etc/hosts
 systemctl enable NetworkManager $DISPLAYMANAGER
 
 # Install GRUB bootloader
-
-
 grub-install --target=x86_64-efi /dev/"$DRIVE"
-
 grub-mkconfig -o /boot/grub/grub.cfg
 
 useradd -m -G wheel,users,video,audio -s /bin/bash $USERNAME

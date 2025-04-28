@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 PACSTRAP=$(<pacstrap)
 # you can look for yours on /usr/share/zoneinfo
 # example syntax: Region/City
@@ -29,3 +29,9 @@ DISPLAYMANAGER="sddm"
 
 DESKTOPMANAGER="xfce4 xfce4-goodies"
 
+# This is mainly for packages such as firefox
+# or any terminal emulator that you may prefer.
+# There are other programs you may want, so feel free to add them here.
+# EXCLUDE COMMAS
+# examples: firefox, alacritty, vim, nano
+ADDITIONAL_PACKAGES="nano alacritty"
