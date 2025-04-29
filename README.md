@@ -4,6 +4,8 @@ A simple and automated script to install Arch Linux with minimal user input. Thi
 
 NOT FINISHED, STILL TESTING, EXPECT BUGS 
 
+Proof it works: https://youtu.be/3uoQGT-V1CU
+
 
 # Features
 
