@@ -53,12 +53,14 @@ DESKTOPMANAGER="xfce4 xfce4-goodies"
   ## Common issue:
   If you are getting errors when installing git, it may be caused by outdated rings.
   To mitigate, try these:
+   
+   ```bash
+   pacman -Sy archlinux-keyring
+   ```
+   
    ```bash
    pacman-key --init
    pacman-key --populate
-   ```
-   ```bash
-   pacman -Sy archlinux-keyring
    ```
 
 # Timezone and Locale
