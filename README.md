@@ -1,3 +1,5 @@
+# CURRENTLY UNMAINTAINED, WILL MAKE A NEW SIMILAR PROJECT SOMEDAY
+
 # Arch Linux Autoinstaller
 
 A simple and automated script to install Arch Linux with minimal user input. This autoinstaller streamlines the installation process while maintaining flexibility for customization.
