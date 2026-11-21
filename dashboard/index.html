@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arch Autoinstaller</title>
+<style>
+:root {
+  --bg: #0f1218; --panel: #171b23; --panel-2: #1e2330; --line: #2a3142;
+  --text: #e6e9ef; --muted: #8b93a7; --accent: #1793d1; --accent-2: #36b3f0;
+  --danger: #ef5b5b; --ok: #3ccf91; --warn: #f0b429; --radius: 12px;
+  --mono: ui-monospace, "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f4f6fa; --panel: #ffffff; --panel-2: #eef1f6; --line: #d9dee8;
+    --text: #1b2230; --muted: #5d6679; color-scheme: light;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px;
+  padding: 14px 24px; background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; }
+.logo svg { width: 28px; height: 28px; }
+.badges { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.badge { font-size: 12px; padding: 3px 10px; border-radius: 99px; background: var(--panel-2);
+  border: 1px solid var(--line); color: var(--muted); }
+.badge.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.badge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px;
+  max-width: 1400px; margin: 0 auto; padding: 24px; }
+@media (max-width: 1000px) { main { grid-template-columns: 1fr; padding: 16px; } }
+.presets { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+.presets span { color: var(--muted); font-size: 13px; margin-right: 4px; }
+section.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px 20px 8px; margin-bottom: 18px; }
+section.card h2 { margin: 0 0 14px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent-2); display: flex; align-items: center; gap: 8px; }
+.field { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 6px 16px; align-items: start;
+  padding: 10px 0; border-top: 1px solid var(--line); }
+.field:first-of-type { border-top: 0; }
+@media (max-width: 640px) { .field { grid-template-columns: 1fr; } }
+.field label.name { font-weight: 600; padding-top: 6px; }
+.field .help { grid-column: 2; color: var(--muted); font-size: 13px; margin-top: -2px; }
+@media (max-width: 640px) { .field .help { grid-column: 1; } }
+.field.hidden { display: none; }
+.field.invalid input { border-color: var(--danger); }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button { border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+  padding: 6px 12px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 14px; }
+.seg button:hover { border-color: var(--accent); }
+.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+input[type=text] { width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--text); font: inherit; }
+input[type=text]:focus, .seg button:focus-visible, .btn:focus-visible, .disk:focus-visible, .de:focus-visible {
+  outline: 2px solid var(--accent-2); outline-offset: 1px; }
+.grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.de, .disk { text-align: left; border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+  border-radius: 10px; padding: 10px 12px; cursor: pointer; font: inherit; }
+.de b, .disk b { display: block; font-size: 14px; }
+.de small, .disk small { color: var(--muted); font-size: 12px; }
+.de[aria-pressed="true"], .disk[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel-2)); }
+.disk[disabled] { opacity: .45; cursor: not-allowed; }
+.disks { display: grid; gap: 8px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--panel-2); }
+.tags span { display: inline-flex; align-items: center; gap: 4px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; padding: 2px 4px 2px 8px; font-family: var(--mono); font-size: 13px; }
+.tags span button { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; }
+.tags span button:hover { color: var(--danger); }
+.tags input { flex: 1; min-width: 140px; border: 0 !important; background: transparent !important; padding: 4px !important; }
+.suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.suggest button { font: 12px var(--mono); border: 1px dashed var(--line); background: none; color: var(--muted);
+  padding: 2px 8px; border-radius: 6px; cursor: pointer; }
+.suggest button:hover { color: var(--accent-2); border-color: var(--accent); }
+aside { position: sticky; top: 84px; align-self: start; display: grid; gap: 16px; }
+@media (max-width: 1000px) { aside { position: static; } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+.panel h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.summary dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
+.summary dt { color: var(--muted); }
+.summary dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+.danger-note { margin-top: 12px; font-size: 13px; color: var(--danger); }
+.actions { display: grid; gap: 8px; }
+.btn { border: 1px solid var(--line); background: var(--panel-2); color: var(--text); padding: 10px 14px;
+  border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-2); }
+.btn.go { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.row { display: flex; gap: 8px; }
+.row .btn { flex: 1; }
+pre { margin: 0; max-height: 360px; overflow: auto; font: 12px/1.5 var(--mono); background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.errors { color: var(--danger); font-size: 13px; margin: 0; padding-left: 18px; }
+.errors:empty { display: none; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--panel);
+  border: 1px solid var(--line); padding: 10px 18px; border-radius: 10px; transition: transform .25s; z-index: 10;
+  box-shadow: 0 10px 30px rgb(0 0 0 / .35); max-width: calc(100% - 32px); }
+.toast.show { transform: translateX(-50%) translateY(0); }
+dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius);
+  max-width: 460px; width: calc(100% - 32px); }
+dialog::backdrop { background: rgb(0 0 0 / .6); }
+dialog h3 { margin-top: 0; color: var(--danger); }
+.muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#1793d1" d="M12 1.5c-.9 2.3-1.5 3.8-2.5 6 .6.7 1.4 1.4 2.6 2.3-1.3-.5-2.2-1.1-2.9-1.7C7.8 11.2 5.7 15 2 21.5c3-1.7 5.2-2.8 7.4-3.2-.1-.4-.2-.9-.1-1.3v-.1c.1-2.3 1.3-4 2.7-3.9 1.4.1 2.4 2.1 2.3 4.4 0 .4-.1.8-.1 1.1 2.1.4 4.3 1.5 7.3 3.1-.6-1.1-1.1-2-1.6-2.9-.8-.6-1.6-1.4-3.3-2.2 1.2.3 2 .6 2.6 1C15.6 9.6 14.4 6.4 12 1.5Z"/></svg>
+    Arch Autoinstaller
+  </div>
+  <div class="badges" id="badges"><span class="badge" id="conn">connecting…</span></div>
+</header>
+
+<main>
+  <div>
+    <div class="presets" id="presets"><span>Presets</span></div>
+    <div id="form"></div>
+  </div>
+  <aside>
+    <div class="panel summary">
+      <h3>Summary</h3>
+      <dl id="summary"></dl>
+      <div class="danger-note" id="dangerNote"></div>
+    </div>
+    <div class="panel">
+      <h3>Actions</h3>
+      <ul class="errors" id="errors"></ul>
+      <div class="actions">
+        <div class="row" id="serverActions">
+          <button class="btn" id="checkBtn" title="Run install.sh --check with these options">Check plan</button>
+          <button class="btn primary" id="saveBtn">Save config</button>
+        </div>
+        <button class="btn go" id="installBtn">Save &amp; install…</button>
+        <div class="row">
+          <button class="btn" id="downloadBtn">Download config</button>
+          <button class="btn" id="copyBtn">Copy</button>
+        </div>
+        <label class="btn" style="text-align:center">Import config<input type="file" id="importFile" hidden accept=".conf,text/plain,*/*"></label>
+      </div>
+    </div>
+    <div class="panel">
+      <h3 id="outTitle">Generated config</h3>
+      <pre id="output"></pre>
+    </div>
+  </aside>
+</main>
+
+<dialog id="confirm">
+  <h3>Erase the disk and install?</h3>
+  <p>Everything on <b id="confirmDisk"></b> will be erased. The installer continues in the terminal
+    where you ran <code>./install.sh --web</code>, and asks for passwords there.</p>
+  <p class="muted" id="confirmNoDisk" hidden>No disk is selected, so the installer will ask which disk to use.</p>
+  <div class="row">
+    <button class="btn" id="cancelInstall">Cancel</button>
+    <button class="btn go" id="doInstall">Save &amp; install</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+"use strict";
+// Fallback schema for standalone use (opening this file directly). When served
+// by server.py the live schema from lib/options.conf replaces it.
+// Keep in sync with lib/options.conf (tests/run.sh checks this).
+const EMBEDDED_SCHEMA = [
+  ["DISK","disk","","Disk","Target disk (erased!)"],
+  ["FILESYSTEM","enum","ext4,btrfs,xfs","Disk","Root filesystem"],
+  ["ENCRYPT","enum","no,yes","Disk","LUKS2 encryption"],
+  ["EFI_SIZE","text","^[0-9]+[MG]$","Disk","EFI partition size"],
+  ["SWAP","enum","zram,file,none","Disk","Swap"],
+  ["SWAP_SIZE","text","^[0-9]+[MG]$","Disk","Swap file size"],
+  ["BOOTLOADER","enum","grub,systemd-boot","Boot","Bootloader"],
+  ["KERNEL","enum","linux,linux-lts,linux-zen,linux-hardened","Boot","Kernel"],
+  ["HOSTNAME","text","^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$","System","Hostname"],
+  ["TIMEZONE","text","^[A-Za-z0-9_+/-]+$","System","Timezone"],
+  ["LOCALE","text","^[A-Za-z0-9_.@-]+( UTF-8)?$","System","Locale"],
+  ["KEYMAP","text","^[A-Za-z0-9_.-]+$","System","Console keymap"],
+  ["USERNAME","text","^([a-z_][a-z0-9_-]{0,31})?$","Users","Username (empty = ask)"],
+  ["USER_SHELL","enum","bash,zsh,fish","Users","User shell"],
+  ["USER_SUDO","enum","yes,no","Users","Sudo for user"],
+  ["ROOT_PASSWORD_MODE","enum","lock,same,prompt","Users","Root password"],
+  ["DESKTOP","enum","none,xfce,gnome,kde,cinnamon,mate,lxqt,budgie,i3,sway,hyprland","Desktop","Desktop environment"],
+  ["DISPLAY_MANAGER","enum","auto,none,sddm,gdm,lightdm,ly","Desktop","Display manager"],
+  ["GPU_DRIVER","enum","auto,none,intel,amd,nvidia,vm","Hardware","GPU driver"],
+  ["MICROCODE","enum","auto,intel,amd,none","Hardware","CPU microcode"],
+  ["AUDIO","enum","pipewire,pulseaudio,none","Hardware","Audio"],
+  ["BLUETOOTH","enum","no,yes","Hardware","Bluetooth"],
+  ["PRINTING","enum","no,yes","Hardware","Printing (CUPS)"],
+  ["NETWORK","enum","networkmanager,iwd,none","Network","Network manager"],
+  ["SSH","enum","no,yes","Network","OpenSSH server"],
+  ["FIREWALL","enum","none,ufw,firewalld","Network","Firewall"],
+  ["MIRROR_COUNTRY","text","^[A-Za-z ,]*$","Packages","Mirror country"],
+  ["PARALLEL_DOWNLOADS","text","^[1-9][0-9]?$","Packages","Parallel downloads"],
+  ["MULTILIB","enum","no,yes","Packages","Multilib repo"],
+  ["AUR_HELPER","enum","none,yay,paru","Packages","AUR helper"],
+  ["ADDITIONAL_PACKAGES","text","^[A-Za-z0-9@._+ -]*$","Packages","Extra packages"],
+  ["ADDITIONAL_SERVICES","text","^[A-Za-z0-9@._: -]*$","Packages","Extra services"],
+  ["REBOOT_WHEN_DONE","enum","no,yes","Finish","Reboot when done"],
+].map(([key, kind, rule, section, label]) => ({
+  key, kind, section, label,
+  ...(kind === "enum" ? { choices: rule.split(",") } : kind === "text" ? { pattern: rule } : {}),
+}));
+
+const DEFAULTS = {
+  DISK: "", FILESYSTEM: "ext4", ENCRYPT: "no", EFI_SIZE: "1G", SWAP: "zram", SWAP_SIZE: "4G",
+  BOOTLOADER: "grub", KERNEL: "linux", HOSTNAME: "archlinux", TIMEZONE: "UTC", LOCALE: "en_US.UTF-8",
+  KEYMAP: "us", USERNAME: "", USER_SHELL: "bash", USER_SUDO: "yes", ROOT_PASSWORD_MODE: "lock",
+  DESKTOP: "xfce", DISPLAY_MANAGER: "auto", GPU_DRIVER: "auto", MICROCODE: "auto", AUDIO: "pipewire",
+  BLUETOOTH: "no", PRINTING: "no", NETWORK: "networkmanager", SSH: "no", FIREWALL: "none",
+  MIRROR_COUNTRY: "", PARALLEL_DOWNLOADS: "10", MULTILIB: "no", AUR_HELPER: "none",
+  ADDITIONAL_PACKAGES: "nano alacritty firefox", ADDITIONAL_SERVICES: "", REBOOT_WHEN_DONE: "no",
+};
+
+const PRESETS = {
+  Minimal: { DESKTOP: "none", DISPLAY_MANAGER: "none", AUDIO: "none", BLUETOOTH: "no", PRINTING: "no",
+    SWAP: "zram", AUR_HELPER: "none", ADDITIONAL_PACKAGES: "nano vim" },
+  Desktop: { DESKTOP: "kde", DISPLAY_MANAGER: "auto", AUDIO: "pipewire", BLUETOOTH: "yes", PRINTING: "yes",
+    GPU_DRIVER: "auto", SWAP: "zram", AUR_HELPER: "yay", ADDITIONAL_PACKAGES: "firefox nano vlc" },
+  Gaming: { DESKTOP: "kde", DISPLAY_MANAGER: "auto", AUDIO: "pipewire", BLUETOOTH: "yes", MULTILIB: "yes",
+    KERNEL: "linux-zen", GPU_DRIVER: "auto", SWAP: "zram", AUR_HELPER: "yay",
+    ADDITIONAL_PACKAGES: "firefox steam gamemode lib32-gamemode mangohud discord" },
+  Server: { DESKTOP: "none", DISPLAY_MANAGER: "none", AUDIO: "none", BLUETOOTH: "no", PRINTING: "no",
+    KERNEL: "linux-lts", SSH: "yes", FIREWALL: "ufw", SWAP: "file", ADDITIONAL_PACKAGES: "vim htop tmux rsync" },
+};
+
+const HELP = {
+  FILESYSTEM: "btrfs gets subvolumes (@, @home, @log, @pkg, @snapshots) with zstd compression.",
+  ENCRYPT: "Full-disk encryption of the root partition. You type the passphrase at every boot.",
+  EFI_SIZE: "UEFI only. Mounted at /boot and holds the kernels, so keep it at 512M or more.",
+  SWAP: "zram = compressed swap in RAM (recommended). file = swap file on disk (needed for hibernation).",
+  BOOTLOADER: "systemd-boot is simpler and faster but needs UEFI; BIOS machines always use GRUB.",
+  KERNEL: "linux-lts for stability, linux-zen for desktop/gaming responsiveness.",
+  TIMEZONE: "Region/City, for example Europe/Berlin or America/New_York.",
+  LOCALE: "For example en_US.UTF-8, en_GB.UTF-8, de_DE.UTF-8.",
+  KEYMAP: "Console keyboard layout, for example us, uk, de-latin1, fr.",
+  USERNAME: "Lowercase letters, digits, - and _. Leave empty to be asked. Passwords are always asked in the terminal.",
+  ROOT_PASSWORD_MODE: "lock disables root login (use sudo). same reuses the user password. prompt asks for a separate one.",
+  DISPLAY_MANAGER: "auto picks the best login screen for the chosen desktop.",
+  GPU_DRIVER: "auto detects the graphics card (and VirtualBox, VMware, QEMU and Hyper-V guests).",
+  MICROCODE: "CPU security and stability updates. auto detects Intel or AMD.",
+  NETWORK: "NetworkManager is easiest (nmcli / nmtui). iwd + systemd-networkd is lighter.",
+  FIREWALL: "ufw denies incoming connections by default (SSH stays allowed if enabled).",
+  MIRROR_COUNTRY: "Rank the fastest mirrors in these countries with reflector, e.g. Germany or US,Canada.",
+  MULTILIB: "32-bit libraries, needed for Steam and Wine.",
+  AUR_HELPER: "Installed from the AUR as your user after the base system.",
+  ADDITIONAL_PACKAGES: "Any packages from the official repos. Press Enter or space to add.",
+  ADDITIONAL_SERVICES: "systemd units to enable, e.g. docker.service.",
+};
+
+const DESKTOPS = {
+  none: ["No desktop", "Console only"], xfce: ["Xfce", "Light, classic"], gnome: ["GNOME", "Modern, Wayland"],
+  kde: ["KDE Plasma", "Full featured"], cinnamon: ["Cinnamon", "Familiar layout"], mate: ["MATE", "GNOME 2 style"],
+  lxqt: ["LXQt", "Very light"], budgie: ["Budgie", "Simple, elegant"], i3: ["i3", "Tiling, X11"],
+  sway: ["Sway", "Tiling, Wayland"], hyprland: ["Hyprland", "Animated tiling"],
+};
+const PKG_SUGGEST = ["firefox", "chromium", "vim", "neovim", "htop", "btop", "fastfetch", "git", "wget", "kitty",
+  "alacritty", "vlc", "mpv", "libreoffice-fresh", "gimp", "obs-studio", "docker", "flatpak", "steam", "discord", "code"];
+const SECTION_ICONS = { Disk: "💽", Boot: "⚡", System: "🖥️", Users: "👤", Desktop: "🪟", Hardware: "🔧",
+  Network: "🌐", Packages: "📦", Finish: "🏁" };
+
+// ------------------------------------------------------------------ state ---
+const token = new URLSearchParams(location.search).get("token") || "";
+let schema = EMBEDDED_SCHEMA;
+let config = { ...DEFAULTS };
+let info = null;
+let online = false;
+const $ = (id) => document.getElementById(id);
+
+async function api(path, body) {
+  const res = await fetch(path, {
+    method: body ? "POST" : "GET",
+    headers: { "X-Token": token, ...(body ? { "Content-Type": "application/json" } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok && !data.errors) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const k of kids.flat()) if (k != null) e.append(k);
+  return e;
+}
+
+const fmtSize = (b) => b >= 1e12 ? (b / 1e12).toFixed(1) + " TB" : (b / 1e9).toFixed(0) + " GB";
+
+// ----------------------------------------------------------------- render ---
+function set(key, value) { config[key] = value; render(); }
+
+function enumControl(opt) {
+  return el("div", { class: "seg", role: "group", "aria-label": opt.label },
+    opt.choices.map((c) => el("button", { type: "button", "aria-pressed": String(config[opt.key] === c),
+      onclick: () => set(opt.key, c) }, c)));
+}
+
+function desktopControl(opt) {
+  return el("div", { class: "grid-cards" }, opt.choices.map((c) => {
+    const [name, desc] = DESKTOPS[c] || [c, ""];
+    return el("button", { type: "button", class: "de", "aria-pressed": String(config.DESKTOP === c),
+      onclick: () => set("DESKTOP", c) }, el("b", {}, name), el("small", {}, desc));
+  }));
+}
+
+function diskControl() {
+  const disks = info?.disks || [];
+  const wrap = el("div", { class: "disks" });
+  wrap.append(el("button", { type: "button", class: "disk", "aria-pressed": String(!config.DISK),
+    onclick: () => set("DISK", "") }, el("b", {}, "Ask during install"), el("small", {}, "Choose the disk in the terminal")));
+  for (const d of disks) {
+    const meta = [fmtSize(d.size), d.model, d.tran?.toUpperCase(), d.removable && "removable", d.live_iso && "live ISO — cannot install here"]
+      .filter(Boolean).join(" · ");
+    wrap.append(el("button", { type: "button", class: "disk", disabled: d.live_iso, "aria-pressed": String(config.DISK === d.path),
+      onclick: () => set("DISK", d.path) }, el("b", {}, d.path), el("small", {}, meta)));
+  }
+  if (!online || !disks.length) {
+    const input = el("input", { type: "text", value: config.DISK, placeholder: "/dev/sda or /dev/nvme0n1",
+      onchange: (e) => set("DISK", e.target.value.trim()) });
+    wrap.append(input);
+  }
+  return wrap;
+}
+
+function packagesControl(opt) {
+  const list = () => config[opt.key].split(/[\s,]+/).filter(Boolean);
+  const write = (arr) => set(opt.key, [...new Set(arr)].join(" "));
+  const input = el("input", { type: "text", placeholder: opt.key === "ADDITIONAL_PACKAGES" ? "add package…" : "add service…",
+    "aria-label": opt.label,
+    onkeydown: (e) => {
+      if ((e.key === "Enter" || e.key === " " || e.key === ",") && e.target.value.trim()) {
+        e.preventDefault(); const v = e.target.value.trim(); e.target.value = "";
+        if (new RegExp(opt.pattern).test(v)) { write([...list(), v]); refocus = opt.key; }
+        else toast("Invalid name: " + v);
+      } else if (e.key === "Backspace" && !e.target.value && list().length) {
+        write(list().slice(0, -1)); refocus = opt.key;
+      }
+    } });
+  input.dataset.key = opt.key;
+  const tags = el("div", { class: "tags", onclick: () => input.focus() },
+    list().map((p) => el("span", {}, p, el("button", { type: "button", "aria-label": "Remove " + p,
+      onclick: (e) => { e.stopPropagation(); write(list().filter((x) => x !== p)); } }, "×"))), input);
+  if (opt.key !== "ADDITIONAL_PACKAGES") return tags;
+  const sugg = el("div", { class: "suggest" }, PKG_SUGGEST.filter((p) => !list().includes(p))
+    .map((p) => el("button", { type: "button", onclick: () => write([...list(), p]) }, "+ " + p)));
+  return el("div", {}, tags, sugg);
+}
+
+function textControl(opt) {
+  const input = el("input", { type: "text", value: config[opt.key], spellcheck: "false", "aria-label": opt.label,
+    oninput: (e) => { config[opt.key] = e.target.value; e.target.closest(".field").classList.toggle("invalid", !valid(opt, e.target.value)); renderSide(); },
+    onchange: () => render() });
+  if (opt.key === "TIMEZONE") {
+    try {
+      const dl = el("datalist", { id: "tzlist" }, Intl.supportedValuesOf("timeZone").map((z) => el("option", { value: z })));
+      input.setAttribute("list", "tzlist");
+      return el("div", {}, input, dl);
+    } catch { /* older browser */ }
+  }
+  return input;
+}
+
+function visible(key) {
+  switch (key) {
+    case "SWAP_SIZE": return config.SWAP === "file";
+    case "EFI_SIZE": return !info || info.boot_mode === "UEFI";
+    case "DISPLAY_MANAGER": return config.DESKTOP !== "none";
+    default: return true;
+  }
+}
+
+const valid = (opt, v) => opt.kind === "enum" ? opt.choices.includes(v)
+  : opt.kind === "text" ? new RegExp(opt.pattern).test(v) : /^(\/dev\/[A-Za-z0-9/_-]+)?$/.test(v);
+
+let refocus = null;
+function render() {
+  const form = $("form");
+  const scroll = window.scrollY;
+  form.replaceChildren();
+  const sections = [...new Set(schema.map((o) => o.section))];
+  for (const s of sections) {
+    const card = el("section", { class: "card" }, el("h2", {}, el("span", { "aria-hidden": "true" }, SECTION_ICONS[s] || "•"), s));
+    for (const opt of schema.filter((o) => o.section === s)) {
+      let control;
+      if (opt.key === "DISK") control = diskControl();
+      else if (opt.key === "DESKTOP") control = desktopControl(opt);
+      else if (opt.key === "ADDITIONAL_PACKAGES" || opt.key === "ADDITIONAL_SERVICES") control = packagesControl(opt);
+      else if (opt.kind === "enum") control = enumControl(opt);
+      else control = textControl(opt);
+      let help = HELP[opt.key] || "";
+      if (opt.key === "GPU_DRIVER" && info) help += ` Detected: ${info.gpu}${info.gpus.length ? " (" + info.gpus.join("; ") + ")" : ""}.`;
+      if (opt.key === "MICROCODE" && info) help += ` Detected: ${info.cpu}.`;
+      if (opt.key === "BOOTLOADER" && info?.boot_mode === "BIOS") help += " This machine booted in BIOS mode.";
+      const field = el("div", { class: "field" + (visible(opt.key) ? "" : " hidden") + (valid(opt, config[opt.key] ?? "") ? "" : " invalid") },
+        el("label", { class: "name" }, opt.label), control, help ? el("div", { class: "help" }, help) : null);
+      card.append(field);
+    }
+    form.append(card);
+  }
+  window.scrollTo(0, scroll);
+  // Any change invalidates a previously shown plan.
+  if ($("outTitle").dataset.mode === "plan") { $("outTitle").dataset.mode = ""; $("outTitle").textContent = "Generated config"; }
+  if (refocus) { form.querySelector(`input[data-key="${refocus}"]`)?.focus(); refocus = null; }
+  renderSide();
+}
+
+function configText() {
+  const q = (v) => "'" + String(v).replace(/'/g, "'\\''") + "'";
+  const lines = ["# arch-autoinstaller config, generated by the web dashboard " + new Date().toISOString().slice(0, 10),
+    "# Use with: ./install.sh --config <this file>"];
+  let section = "";
+  for (const o of schema) {
+    if (o.section !== section) { lines.push("", "# --- " + o.section); section = o.section; }
+    lines.push(`${o.key}=${q(config[o.key] ?? "")}`);
+  }
+  return lines.join("\n") + "\n";
+}
+
+function errorsList() {
+  return schema.filter((o) => !valid(o, config[o.key] ?? "")).map((o) => `${o.label}: invalid value “${config[o.key]}”`);
+}
+
+function renderSide() {
+  const dm = config.DESKTOP === "none" ? "none" : config.DISPLAY_MANAGER;
+  const rows = [
+    ["Disk", config.DISK || "ask"], ["Filesystem", config.FILESYSTEM + (config.ENCRYPT === "yes" ? " + LUKS" : "")],
+    ["Boot", `${config.BOOTLOADER} · ${config.KERNEL}`], ["Desktop", `${DESKTOPS[config.DESKTOP]?.[0] || config.DESKTOP}${dm !== "none" ? " · " + dm : ""}`],
+    ["User", config.USERNAME || "ask"], ["Host", config.HOSTNAME], ["Time zone", config.TIMEZONE],
+    ["Extras", config.ADDITIONAL_PACKAGES.split(/\s+/).filter(Boolean).length + " packages"],
+  ];
+  $("summary").replaceChildren(...rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, v)]));
+  $("dangerNote").textContent = config.DISK ? `⚠ All data on ${config.DISK} will be erased.` : "";
+  const errs = errorsList();
+  $("errors").replaceChildren(...errs.map((e) => el("li", {}, e)));
+  for (const id of ["saveBtn", "installBtn", "checkBtn", "downloadBtn", "copyBtn"]) $(id).disabled = errs.length > 0;
+  if (!online) $("installBtn").hidden = true, $("serverActions").hidden = true;
+  if ($("outTitle").dataset.mode !== "plan") $("output").textContent = configText();
+}
+
+// ---------------------------------------------------------------- actions ---
+function setOutput(title, text, mode = "config") {
+  $("outTitle").textContent = title; $("outTitle").dataset.mode = mode; $("output").textContent = text;
+}
+
+$("checkBtn").onclick = async () => {
+  setOutput("Install plan", "Running install.sh --check …", "plan");
+  try {
+    const r = await api("/api/plan", { config });
+    setOutput(r.ok ? "Install plan ✓" : "Install plan — problems", r.output || (r.errors || []).join("\n"), "plan");
+  } catch (e) { setOutput("Install plan", "Failed: " + e.message, "plan"); }
+};
+$("output").ondblclick = () => setOutput("Generated config", configText());
+
+async function save(path) {
+  const r = await api(path, { config });
+  if (!r.ok) { toast("Not saved: " + (r.errors || []).join(", ")); return false; }
+  return true;
+}
+$("saveBtn").onclick = async () => { try { if (await save("/api/save")) toast("Config saved on the installer"); } catch (e) { toast("Save failed: " + e.message); } };
+$("installBtn").onclick = () => {
+  $("confirmDisk").textContent = config.DISK || "the disk you pick";
+  $("confirmNoDisk").hidden = !!config.DISK;
+  $("confirm").showModal();
+};
+$("cancelInstall").onclick = () => $("confirm").close();
+$("doInstall").onclick = async () => {
+  $("confirm").close();
+  try {
+    if (await save("/api/install")) {
+      document.body.innerHTML = `<main style="display:block;max-width:640px"><section class="card" style="padding:28px">
+        <h2>Handed over to the installer</h2><p>The config is saved. Go back to the terminal on the target machine:
+        it will ask for passwords and a final confirmation, then install.</p><p class="muted">You can close this tab.</p></section></main>`;
+    }
+  } catch (e) { toast("Failed: " + e.message); }
+};
+$("downloadBtn").onclick = () => {
+  const a = el("a", { href: URL.createObjectURL(new Blob([configText()], { type: "text/plain" })), download: "config" });
+  a.click(); URL.revokeObjectURL(a.href);
+};
+$("copyBtn").onclick = async () => {
+  try { await navigator.clipboard.writeText(configText()); toast("Config copied"); }
+  catch { toast("Clipboard not available here; use Download"); }
+};
+$("importFile").onchange = async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const text = await file.text();
+  let n = 0;
+  for (const line of text.split("\n")) {
+    const m = line.match(/^([A-Z_]+)=(?:'((?:[^']|'\\'')*)'|"([^"]*)"|(\S*))\s*$/);
+    if (m && m[1] in DEFAULTS) { config[m[1]] = (m[2] ?? "").replace(/'\\''/g, "'") || m[3] || m[4] || ""; n++; }
+  }
+  if (config.LOCALE.endsWith(" UTF-8")) config.LOCALE = config.LOCALE.slice(0, -6);
+  if (config.DISK && !config.DISK.startsWith("/")) config.DISK = "/dev/" + config.DISK;
+  toast(`Imported ${n} options`); render(); e.target.value = "";
+};
+
+for (const [name, values] of Object.entries(PRESETS)) {
+  $("presets").append(el("button", { type: "button", class: "btn", onclick: () => { Object.assign(config, values); render(); toast(name + " preset applied"); } }, name));
+}
+$("presets").append(el("button", { type: "button", class: "btn", onclick: () => { config = { ...DEFAULTS }; render(); toast("Reset to defaults"); } }, "Reset"));
+
+// ------------------------------------------------------------------- boot ---
+async function boot() {
+  try {
+    if (location.protocol === "file:") throw new Error("standalone");
+    const [s, c, i] = await Promise.all([api("/api/schema"), api("/api/config"), api("/api/info")]);
+    if (Array.isArray(s) && s.length) schema = s;
+    config = { ...DEFAULTS, ...c };
+    info = i; online = true;
+    const b = $("badges");
+    b.replaceChildren(
+      el("span", { class: "badge ok" }, "● connected to " + i.hostname),
+      el("span", { class: "badge" + (i.boot_mode === "UEFI" ? " ok" : " warn") }, i.boot_mode),
+      el("span", { class: "badge" }, `CPU ${i.cpu} · GPU ${i.gpu}${i.virt ? " · " + i.virt : ""}`),
+      i.memory ? el("span", { class: "badge" }, (i.memory / 2 ** 30).toFixed(1) + " GiB RAM") : "",
+    );
+    if (!i.live_iso) b.append(el("span", { class: "badge warn" }, "not a live ISO"));
+  } catch {
+    $("conn").textContent = "standalone — download the config and copy it to the installer";
+    $("conn").className = "badge warn";
+  }
+  render();
+}
+boot();
+</script>
+</body>
+</html>

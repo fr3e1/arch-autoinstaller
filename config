@@ -1,37 +1,96 @@
-#!/bin/bash
-PACSTRAP=$(<pacstrap)
-# you can look for yours on /usr/share/zoneinfo
-# example syntax: Region/City
-# default: UTC
+# ============================================================================
+#  arch-autoinstaller configuration
+# ----------------------------------------------------------------------------
+#  Edit this file by hand, or generate it with one of the dashboards:
+#    ./install.sh --web    browser dashboard (open it from any device on the LAN)
+#    ./install.sh --menu   terminal dashboard
+#
+#  Values are plain bash assignments. Leave a value empty ("") to be asked
+#  for it during the install. Passwords are never stored here: they are
+#  prompted for at install time (or read from the USER_PASSWORD /
+#  ROOT_PASSWORD / LUKS_PASSWORD environment variables for unattended runs).
+# ============================================================================
 
-TIMEZONE="UTC"
+# --- Disk -------------------------------------------------------------------
+# Target disk, e.g. /dev/sda or /dev/nvme0n1. EVERYTHING ON IT WILL BE ERASED.
+DISK=''
+# Root filesystem: ext4 | btrfs | xfs   (btrfs gets @, @home, @log, @pkg, @snapshots)
+FILESYSTEM='ext4'
+# Encrypt the root partition with LUKS2: yes | no
+ENCRYPT='no'
+# Size of the EFI system partition (UEFI only), mounted at /boot
+EFI_SIZE='1G'
+# Swap: zram | file | none
+SWAP='zram'
+# Swap file size when SWAP='file', e.g. 4G
+SWAP_SIZE='4G'
 
-# locales can be found on /etc/locale.gen
-# default: en_US.UTF-8 UTF-8
+# --- Boot -------------------------------------------------------------------
+# grub | systemd-boot   (systemd-boot needs UEFI; falls back to grub on BIOS)
+BOOTLOADER='grub'
+# linux | linux-lts | linux-zen | linux-hardened
+KERNEL='linux'
 
-LOCALE="en_US.UTF-8 UTF-8"
+# --- System -----------------------------------------------------------------
+HOSTNAME='archlinux'
+# Region/City from /usr/share/zoneinfo, e.g. Europe/Berlin
+TIMEZONE='UTC'
+# Locale from /usr/share/i18n/SUPPORTED, e.g. en_US.UTF-8
+LOCALE='en_US.UTF-8'
+# Console keymap, e.g. us, de-latin1, uk
+KEYMAP='us'
 
-# to add a password on your account, do the following command:
-# passwd (your username)
+# --- Users ------------------------------------------------------------------
+# Leave empty to be asked during install
+USERNAME=''
+# bash | zsh | fish
+USER_SHELL='bash'
+# Give the user sudo rights via the wheel group: yes | no
+USER_SUDO='yes'
+# Root account: lock (no root login, use sudo) | same (same as user) | prompt
+ROOT_PASSWORD_MODE='lock'
 
-# USERNAME="user"
+# --- Desktop ----------------------------------------------------------------
+# none | xfce | gnome | kde | cinnamon | mate | lxqt | budgie | i3 | sway | hyprland
+DESKTOP='xfce'
+# auto (best match for the desktop) | none | sddm | gdm | lightdm | ly
+DISPLAY_MANAGER='auto'
 
-# this is for your display manager. search online for the one you prefer.
-# examples: sddm, gdm, lightdm, ly
+# --- Hardware ---------------------------------------------------------------
+# auto | none | intel | amd | nvidia | vm
+GPU_DRIVER='auto'
+# auto | intel | amd | none
+MICROCODE='auto'
+# pipewire | pulseaudio | none
+AUDIO='pipewire'
+# yes | no
+BLUETOOTH='no'
+# CUPS printing: yes | no
+PRINTING='no'
 
-DISPLAYMANAGER="sddm"
+# --- Network & services -----------------------------------------------------
+# networkmanager | iwd | none
+NETWORK='networkmanager'
+# Enable OpenSSH server: yes | no
+SSH='no'
+# none | ufw | firewalld
+FIREWALL='none'
 
-# this is what you will be using as a desktop. 
-# search online for the one you prefer
-# note: you can also add additional dependencies for the dm you want. 
-# for example: "xfce4 xfce4-goodies"
-# examples: hyprland, xfce4, sway, gnome, plasma
+# --- Packages ---------------------------------------------------------------
+# Country (or comma separated list) to rank mirrors for with reflector, e.g.
+# "Germany" or "US,Canada". Empty keeps the live ISO's mirror list.
+MIRROR_COUNTRY=''
+# Parallel package downloads (1-99)
+PARALLEL_DOWNLOADS='10'
+# Enable the 32-bit multilib repository (Steam, Wine...): yes | no
+MULTILIB='no'
+# AUR helper to install: none | yay | paru
+AUR_HELPER='none'
+# Extra packages, space separated (no commas), e.g. "firefox vim htop"
+ADDITIONAL_PACKAGES='nano alacritty firefox'
+# Extra systemd services to enable, space separated
+ADDITIONAL_SERVICES=''
 
-DESKTOPMANAGER="xfce4 xfce4-goodies"
-
-# This is mainly for packages such as firefox
-# or any terminal emulator that you may prefer.
-# There are other programs you may want, so feel free to add them here.
-# EXCLUDE COMMAS
-# examples: firefox, alacritty, vim, nano
-ADDITIONAL_PACKAGES="nano alacritty"
+# --- Finish -----------------------------------------------------------------
+# Reboot automatically when the install finishes: yes | no
+REBOOT_WHEN_DONE='no'
