@@ -69,16 +69,28 @@ cd arch-autoinstaller
 
 The terminal prints a short link such as `http://192.168.1.50/k7m2qx`. Open it
 on any phone or computer on the same network (or open `http://192.168.1.50`
-and type the 6-character access code). Pick your options, choose the disk,
-enter a username, press **Save & install** and type the disk name to confirm.
+and type the 6-character access code).
 
-Everything is decided in the browser. The terminal only asks for the
-passwords (and the encryption passphrase if you enabled it), then installs.
+The dashboard walks through seven steps: Disk, System, Account, Desktop,
+Hardware, Software, and Review & install. It shows the target machine's disks,
+boot mode, CPU and GPU, offers presets (Minimal, Desktop, Gaming, Server), and
+**Show packages** lists exactly what will be installed. On the last step, type
+the disk name to confirm and press **Install Arch Linux**.
 
-The dashboard shows the target machine's disks, boot mode, CPU and GPU. Use
-**Check plan** to see exactly which packages and services will be installed.
+The install then runs in a **web terminal** in the browser (and at the same
+time on the machine's own screen). You can answer prompts in either place.
+
+**Passwords** are asked by the installer when it starts. You can type them on
+the machine itself (safest), in the web terminal, or switch on *Type passwords
+here* on the review page. The page warns about this: the dashboard is plain
+HTTP, so anything typed in the browser travels unencrypted over your network.
+Passwords entered there are handed to the installer in memory only and are
+never written to the config or the log.
+
 The access code keeps other devices on your network out; a device is locked
 out after 20 wrong codes. The dashboard uses port 80, or 8080 if 80 is busy.
+The web terminal uses xterm.js from a CDN; without internet on the viewing
+device it falls back to a plain text view.
 
 You can also open `dashboard/index.html` directly in a browser on any computer
 to build a config in advance. Use **Download config** and copy the file to the
@@ -181,7 +193,7 @@ Project layout:
 | `lib/packages.sh` | Turns options into packages and services |
 | `lib/chroot-setup.sh` | Runs inside the new system (locale, bootloader, users…) |
 | `lib/menu.sh` | Terminal dashboard |
-| `dashboard/` | Web dashboard (`server.py`, standard library only) |
+| `dashboard/` | Web dashboard: `server.py` (standard library only, runs the installer in a pseudo-terminal) and `index.html` |
 | `bootstrap.sh` | What `curl -L fr3e.ca/arch \| bash` runs: downloads and starts the installer |
 | `deploy/` | Web server config for the `fr3e.ca/arch` short link |
 | `tests/run.sh` | Test suite |

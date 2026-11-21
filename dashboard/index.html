@@ -2,175 +2,269 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
 <title>Arch Autoinstaller</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
 <style>
+/* Design system (ui-ux-pro-max): Minimalism & Swiss style, "code dark + run green".
+   JetBrains Mono for headings and code, IBM Plex Sans for body text. */
 :root {
-  --bg: #0f1218; --panel: #171b23; --panel-2: #1e2330; --line: #2a3142;
-  --text: #e6e9ef; --muted: #8b93a7; --accent: #1793d1; --accent-2: #36b3f0;
-  --danger: #ef5b5b; --ok: #3ccf91; --warn: #f0b429; --radius: 12px;
-  --mono: ui-monospace, "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
-  color-scheme: dark;
+  --bg: #0f172a; --surface: #1b2336; --surface-2: #232c41; --line: #2c3650; --border: #475569;
+  --fg: #f8fafc; --muted: #94a3b8; --accent: #22c55e; --on-accent: #0f172a; --accent-soft: rgb(34 197 94 / .12);
+  --danger: #ef4444; --danger-soft: rgb(239 68 68 / .1); --warn: #f59e0b; --warn-soft: rgb(245 158 11 / .1);
+  --ring: #f8fafc; --term-bg: #0b1120;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --r: 10px; --r-sm: 7px; --ease: cubic-bezier(.2, .7, .2, 1);
 }
 @media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --bg: #f4f6fa; --panel: #ffffff; --panel-2: #eef1f6; --line: #d9dee8;
-    --text: #1b2230; --muted: #5d6679; color-scheme: light;
+  :root {
+    --bg: #f8fafc; --surface: #ffffff; --surface-2: #f1f5f9; --line: #e2e8f0; --border: #94a3b8;
+    --fg: #0f172a; --muted: #475569; --accent: #15803d; --on-accent: #ffffff; --accent-soft: rgb(21 128 61 / .1);
+    --danger: #dc2626; --warn: #b45309; --ring: #0f172a;
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px;
-  padding: 14px 24px; background: color-mix(in srgb, var(--bg) 85%, transparent);
-  backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; }
-.logo svg { width: 28px; height: 28px; }
-.badges { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
-.badge { font-size: 12px; padding: 3px 10px; border-radius: 99px; background: var(--panel-2);
-  border: 1px solid var(--line); color: var(--muted); }
-.badge.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
-.badge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
-main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px;
-  max-width: 1400px; margin: 0 auto; padding: 24px; }
-@media (max-width: 1000px) { main { grid-template-columns: 1fr; padding: 16px; } }
-.presets { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
-.presets span { color: var(--muted); font-size: 13px; margin-right: 4px; }
-section.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 18px 20px 8px; margin-bottom: 18px; }
-section.card h2 { margin: 0 0 14px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--accent-2); display: flex; align-items: center; gap: 8px; }
-.field { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 6px 16px; align-items: start;
-  padding: 10px 0; border-top: 1px solid var(--line); }
-.field:first-of-type { border-top: 0; }
-@media (max-width: 640px) { .field { grid-template-columns: 1fr; } }
-.field label.name { font-weight: 600; padding-top: 6px; }
-.field .help { grid-column: 2; color: var(--muted); font-size: 13px; margin-top: -2px; }
-@media (max-width: 640px) { .field .help { grid-column: 1; } }
-.field.hidden { display: none; }
-.field.invalid input { border-color: var(--danger); }
-.seg { display: flex; flex-wrap: wrap; gap: 6px; }
-.seg button { border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
-  padding: 6px 12px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 14px; }
-.seg button:hover { border-color: var(--accent); }
-.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
-input[type=text] { width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line);
-  background: var(--panel-2); color: var(--text); font: inherit; }
-input[type=text]:focus, .seg button:focus-visible, .btn:focus-visible, .disk:focus-visible, .de:focus-visible {
-  outline: 2px solid var(--accent-2); outline-offset: 1px; }
-.grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
-.de, .disk { text-align: left; border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
-  border-radius: 10px; padding: 10px 12px; cursor: pointer; font: inherit; }
-.de b, .disk b { display: block; font-size: 14px; }
-.de small, .disk small { color: var(--muted); font-size: 12px; }
-.de[aria-pressed="true"], .disk[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, var(--panel-2)); }
-.disk[disabled] { opacity: .45; cursor: not-allowed; }
-.disks { display: grid; gap: 8px; }
-.tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border: 1px solid var(--line);
-  border-radius: 8px; background: var(--panel-2); }
-.tags span { display: inline-flex; align-items: center; gap: 4px; background: var(--panel); border: 1px solid var(--line);
-  border-radius: 6px; padding: 2px 4px 2px 8px; font-family: var(--mono); font-size: 13px; }
-.tags span button { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; }
-.tags span button:hover { color: var(--danger); }
-.tags input { flex: 1; min-width: 140px; border: 0 !important; background: transparent !important; padding: 4px !important; }
-.suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.suggest button { font: 12px var(--mono); border: 1px dashed var(--line); background: none; color: var(--muted);
-  padding: 2px 8px; border-radius: 6px; cursor: pointer; }
-.suggest button:hover { color: var(--accent-2); border-color: var(--accent); }
-aside { position: sticky; top: 84px; align-self: start; display: grid; gap: 16px; }
-@media (max-width: 1000px) { aside { position: static; } }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
-.panel h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.summary dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
-.summary dt { color: var(--muted); }
-.summary dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
-.danger-note { margin-top: 12px; font-size: 13px; color: var(--danger); }
-.actions { display: grid; gap: 8px; }
-.btn { border: 1px solid var(--line); background: var(--panel-2); color: var(--text); padding: 10px 14px;
-  border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; }
-.btn:hover { border-color: var(--accent); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn.primary:hover { background: var(--accent-2); }
-.btn.go { background: var(--danger); border-color: var(--danger); color: #fff; }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
-.row { display: flex; gap: 8px; }
-.row .btn { flex: 1; }
-pre { margin: 0; max-height: 360px; overflow: auto; font: 12px/1.5 var(--mono); background: var(--panel-2);
-  border: 1px solid var(--line); border-radius: 8px; padding: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.errors { color: var(--danger); font-size: 13px; margin: 0; padding-left: 18px; }
-.errors:empty { display: none; }
-.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--panel);
-  border: 1px solid var(--line); padding: 10px 18px; border-radius: 10px; transition: transform .25s; z-index: 10;
-  box-shadow: 0 10px 30px rgb(0 0 0 / .35); max-width: calc(100% - 32px); }
-.toast.show { transform: translateX(-50%) translateY(0); }
-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius);
-  max-width: 460px; width: calc(100% - 32px); }
-dialog::backdrop { background: rgb(0 0 0 / .6); }
-dialog h3 { margin-top: 0; color: var(--danger); }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mono { font-family: var(--mono); }
 .muted { color: var(--muted); }
+[hidden] { display: none !important; }
+
+/* ---------- shell ---------- */
+.top { display: flex; align-items: center; gap: 14px; padding: 14px 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 57px; }
+.brand { display: flex; align-items: center; gap: 10px; font: 600 15px var(--mono); letter-spacing: -.01em; }
+.brand svg { width: 24px; height: 24px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.chip { font: 500 12px var(--mono); padding: 3px 9px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.chip.ok { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.chip.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+
+.app { display: grid; grid-template-columns: 248px minmax(0, 1fr); max-width: 1120px; margin: 0 auto; min-height: calc(100vh - 57px); }
+nav.steps { padding: 28px 16px 28px 24px; border-right: 1px solid var(--line); position: sticky; top: 0; align-self: start; min-height: calc(100vh - 57px); }
+.steps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.steps ol button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 0; border-radius: var(--r-sm);
+  background: none; text-align: left; color: var(--muted); transition: background .2s var(--ease), color .2s var(--ease); min-height: 44px; }
+.steps ol button:hover { background: var(--surface); color: var(--fg); }
+.steps ol button[aria-current="step"] { background: var(--surface); color: var(--fg); font-weight: 500; }
+.steps .num { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 500 12px var(--mono);
+  border: 1px solid var(--border); flex: none; transition: all .2s var(--ease); }
+.steps .num svg { width: 14px; height: 14px; }
+.steps ol button[aria-current="step"] .num { border-color: var(--fg); }
+.steps .done .num { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.steps .err .num { border-color: var(--danger); color: var(--danger); }
+.presets { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+.eyebrow { font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.preset-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+main { padding: 32px 40px 120px; min-width: 0; outline: none; }
+.page-head { margin-bottom: 24px; }
+.page-head .eyebrow { margin-bottom: 6px; }
+h1 { font: 600 26px/1.25 var(--mono); letter-spacing: -.02em; margin: 0 0 6px; text-wrap: balance; }
+.page-head p { margin: 0; color: var(--muted); max-width: 60ch; }
+
+/* ---------- fields ---------- */
+.field { padding: 18px 0; border-top: 1px solid var(--line); }
+.field:first-child { border-top: 0; padding-top: 4px; }
+.field > label, .field > .label { display: block; font-weight: 500; margin-bottom: 10px; }
+.help { color: var(--muted); font-size: 14px; margin-top: 8px; max-width: 64ch; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.seg button { border: 0; background: none; padding: 7px 14px; min-height: 36px; border-radius: var(--r-sm); color: var(--muted);
+  font: 500 14px var(--mono); transition: background .18s var(--ease), color .18s var(--ease); }
+.seg button:hover { color: var(--fg); }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+input.text { width: 100%; max-width: 420px; padding: 10px 12px; min-height: 44px; border-radius: var(--r-sm); border: 1px solid var(--border);
+  background: var(--surface); font-family: var(--mono); font-size: 15px; transition: border-color .18s var(--ease), box-shadow .18s var(--ease); }
+input.text:focus { border-color: var(--fg); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--fg) 15%, transparent); }
+.invalid input.text { border-color: var(--danger); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.cards.wide { grid-template-columns: 1fr; }
+.card { display: flex; align-items: center; gap: 12px; text-align: left; padding: 12px 14px; min-height: 56px; border-radius: var(--r);
+  border: 1px solid var(--line); background: var(--surface); transition: border-color .18s var(--ease), background .18s var(--ease); }
+.card:hover:not([disabled]) { border-color: var(--border); }
+.card[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.card[disabled] { opacity: .45; cursor: not-allowed; }
+.card .t { display: block; font: 500 14px var(--mono); }
+.card .s { display: block; color: var(--muted); font-size: 13px; }
+.card .tick { margin-left: auto; color: var(--accent); opacity: 0; transition: opacity .18s; display: flex; }
+.card[aria-pressed="true"] .tick { opacity: 1; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; max-width: 640px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface); cursor: text; }
+.tags:focus-within { border-color: var(--fg); }
+.tag { display: inline-flex; align-items: center; gap: 2px; padding: 3px 4px 3px 9px; border-radius: 6px; background: var(--surface-2); font: 13px var(--mono); }
+.tag button { border: 0; background: none; color: var(--muted); width: 24px; height: 24px; border-radius: 4px; font-size: 16px; line-height: 1; }
+.tag button:hover { color: var(--danger); }
+.tags input { flex: 1; min-width: 140px; border: 0; background: none; padding: 5px; font: 14px var(--mono); outline: none; }
+.suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; max-width: 640px; }
+.suggest button { font: 12px var(--mono); border: 1px dashed var(--border); background: none; color: var(--muted); padding: 4px 9px; border-radius: 6px; min-height: 30px; transition: color .18s; }
+.suggest button:hover { color: var(--fg); border-style: solid; }
+
+/* ---------- buttons ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--surface); font-weight: 500; font-size: 15px; transition: all .18s var(--ease); white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--fg); }
+.btn.small { min-height: 36px; padding: 0 12px; font-size: 13px; }
+.btn.small svg.i { width: 15px; height: 15px; }
+.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.btn.go { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+.btn.go:hover:not(:disabled) { filter: brightness(1.08); }
+.btn.ghost { background: none; border-color: transparent; color: var(--muted); }
+.btn.ghost:hover:not(:disabled) { color: var(--fg); border-color: transparent; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.footer { position: fixed; left: 0; right: 0; bottom: 0; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px); padding: 12px 24px calc(12px + env(safe-area-inset-bottom)); z-index: 5; }
+.footer-in { max-width: 1120px; margin: 0 auto; display: flex; align-items: center; gap: 12px; padding-left: 248px; }
+.footer .count { font: 13px var(--mono); color: var(--muted); }
+.footer .spacer { flex: 1; }
+
+/* ---------- review ---------- */
+.review { display: grid; gap: 12px; }
+.panel { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 18px 20px; }
+.panel h2 { font: 600 14px var(--mono); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.panel h2 .btn { margin-left: auto; }
+dl.sum { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 6px 20px; margin: 0; font-size: 14px; }
+dl.sum dt { color: var(--muted); }
+dl.sum dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
+.callout { display: flex; gap: 12px; padding: 14px 16px; border-radius: var(--r); font-size: 14px; border: 1px solid; }
+.callout svg.i { margin-top: 2px; }
+.callout.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.callout.warn svg.i { color: var(--warn); }
+.callout.danger { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.callout.danger svg.i { color: var(--danger); }
+.callout p { margin: 0 0 4px; }
+.callout p:last-child { margin: 0; }
+.switch { display: flex; align-items: center; gap: 12px; cursor: pointer; min-height: 44px; font-weight: 500; }
+.switch input { appearance: none; width: 40px; height: 22px; border-radius: 99px; background: var(--border); position: relative; margin: 0; cursor: pointer; transition: background .2s var(--ease); flex: none; }
+.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s var(--ease); }
+.switch input:checked { background: var(--warn); }
+.switch input:checked::after { transform: translateX(18px); }
+.pw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 14px; }
+.pw label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+.pw .wrap { position: relative; }
+.pw input.text { max-width: none; padding-right: 46px; }
+.pw .eye { position: absolute; right: 2px; top: 2px; width: 40px; height: 40px; border: 0; background: none; color: var(--muted); border-radius: 6px; display: grid; place-items: center; }
+.pw .eye:hover { color: var(--fg); }
+pre.plan { margin: 0; max-height: 320px; overflow: auto; font: 12.5px/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); }
+ul.errs { margin: 10px 0 0; padding-left: 18px; color: var(--danger); font-size: 14px; }
+ul.errs:empty { display: none; }
+
+/* ---------- terminal view ---------- */
+.termview { display: flex; flex-direction: column; height: calc(100vh - 57px); max-width: 1280px; margin: 0 auto; padding: 20px 24px; gap: 12px; }
+.termbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.status { display: inline-flex; align-items: center; gap: 10px; font: 500 14px var(--mono); }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 4px var(--warn-soft); }
+.status.ok .dot { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.status.fail .dot { background: var(--danger); box-shadow: 0 0 0 4px var(--danger-soft); }
+.status.run .dot { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.termbar .spacer { flex: 1; }
+.term { flex: 1; min-height: 240px; border: 1px solid var(--line); border-radius: var(--r); background: var(--term-bg); padding: 10px 4px 4px 12px; overflow: hidden; }
+.term .xterm { height: 100%; }
+pre.fallback { margin: 0; height: 100%; overflow: auto; color: #e2e8f0; font: 13px/1.5 var(--mono); white-space: pre-wrap; }
+.sendbar { display: flex; gap: 8px; align-items: center; }
+.sendbar input.text { max-width: none; flex: 1; }
+.term-note { font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.term-note svg.i { width: 15px; height: 15px; color: var(--warn); }
+
+.toast { position: fixed; left: 50%; bottom: 84px; transform: translate(-50%, 16px); opacity: 0; pointer-events: none; z-index: 20;
+  background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: var(--r-sm); font-size: 14px; transition: all .2s var(--ease); max-width: calc(100% - 32px); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  nav.steps { border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 12px; position: sticky; top: 0; background: var(--bg); z-index: 4; }
+  .steps ol { display: flex; overflow-x: auto; gap: 4px; scrollbar-width: none; }
+  .steps ol button { width: auto; padding: 8px 10px; }
+  .steps .lbl { display: none; }
+  .steps ol button[aria-current="step"] .lbl { display: inline; white-space: nowrap; }
+  .presets { display: none; }
+  main { padding: 24px 16px 120px; }
+  h1 { font-size: 22px; }
+  .footer { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+  .footer-in { padding-left: 0; }
+  .footer .count { display: none; }
+  .termview { padding: 12px; height: calc(100dvh - 57px); }
+  .top { padding: 12px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
-<header>
-  <div class="logo">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-disk" viewBox="0 0 24 24"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-eyeoff" viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="brand">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#1793d1" d="M12 1.5c-.9 2.3-1.5 3.8-2.5 6 .6.7 1.4 1.4 2.6 2.3-1.3-.5-2.2-1.1-2.9-1.7C7.8 11.2 5.7 15 2 21.5c3-1.7 5.2-2.8 7.4-3.2-.1-.4-.2-.9-.1-1.3v-.1c.1-2.3 1.3-4 2.7-3.9 1.4.1 2.4 2.1 2.3 4.4 0 .4-.1.8-.1 1.1 2.1.4 4.3 1.5 7.3 3.1-.6-1.1-1.1-2-1.6-2.9-.8-.6-1.6-1.4-3.3-2.2 1.2.3 2 .6 2.6 1C15.6 9.6 14.4 6.4 12 1.5Z"/></svg>
-    Arch Autoinstaller
+    arch-autoinstaller
   </div>
-  <div class="badges" id="badges"><span class="badge" id="conn">connecting…</span></div>
+  <div class="chips" id="chips"><span class="chip">connecting…</span></div>
 </header>
 
-<main>
-  <div>
-    <div class="presets" id="presets"><span>Presets</span></div>
-    <div id="form"></div>
+<!-- ============================== wizard ============================== -->
+<div class="app" id="wizard">
+  <nav class="steps" aria-label="Install steps">
+    <ol id="stepList"></ol>
+    <div class="presets">
+      <div class="eyebrow">Start from a preset</div>
+      <div class="preset-row" id="presets"></div>
+    </div>
+  </nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+
+<div class="footer" id="footer">
+  <div class="footer-in">
+    <button class="btn ghost" id="backBtn"><svg class="i"><use href="#i-left"/></svg>Back</button>
+    <span class="count" id="stepCount"></span>
+    <span class="spacer"></span>
+    <button class="btn primary" id="nextBtn">Next</button>
   </div>
-  <aside>
-    <div class="panel summary">
-      <h3>Summary</h3>
-      <dl id="summary"></dl>
-      <div class="danger-note" id="dangerNote"></div>
-    </div>
-    <div class="panel">
-      <h3>Actions</h3>
-      <ul class="errors" id="errors"></ul>
-      <div class="actions">
-        <div class="row" id="serverActions">
-          <button class="btn" id="checkBtn" title="Run install.sh --check with these options">Check plan</button>
-          <button class="btn primary" id="saveBtn">Save config</button>
-        </div>
-        <button class="btn go" id="installBtn">Save &amp; install…</button>
-        <div class="muted" id="installHint" style="font-size:13px"></div>
-        <div class="row">
-          <button class="btn" id="downloadBtn">Download config</button>
-          <button class="btn" id="copyBtn">Copy</button>
-        </div>
-        <label class="btn" style="text-align:center">Import config<input type="file" id="importFile" hidden accept=".conf,text/plain,*/*"></label>
-      </div>
-    </div>
-    <div class="panel">
-      <h3 id="outTitle">Generated config</h3>
-      <pre id="output"></pre>
-    </div>
-  </aside>
-</main>
+</div>
 
-<dialog id="confirm">
-  <h3>Erase the disk and install?</h3>
-  <p>Everything on <b id="confirmDisk"></b> will be <b>permanently erased</b>.</p>
-  <p class="muted">The install starts right away. The terminal on the target machine then asks only for
-    passwords<span id="confirmLuks" hidden> and the disk encryption passphrase</span>.</p>
-  <label for="confirmInput" style="display:block;margin-bottom:6px">Type <b id="confirmDisk2"></b> to confirm:</label>
-  <input type="text" id="confirmInput" autocomplete="off" autocapitalize="off" spellcheck="false" style="margin-bottom:12px">
-  <ul class="errors" id="confirmErrors"></ul>
-  <div class="row">
-    <button class="btn" id="cancelInstall">Cancel</button>
-    <button class="btn go" id="doInstall">Save &amp; install</button>
+<!-- ============================== terminal ============================== -->
+<section class="termview" id="termview" hidden aria-label="Installer terminal">
+  <div class="termbar">
+    <span class="status run" id="termStatus" role="status"><span class="dot"></span><span id="termStatusText">Installing</span></span>
+    <span class="muted mono" id="termTime" style="font-size:13px"></span>
+    <span class="spacer"></span>
+    <button class="btn small" id="termBack" hidden><svg class="i"><use href="#i-left"/></svg>Back to options</button>
   </div>
-</dialog>
+  <div class="term" id="term"></div>
+  <form class="sendbar" id="sendbar" autocomplete="off">
+    <input class="text" id="sendInput" type="password" placeholder="Answer or password, then Enter" aria-label="Send input to the installer">
+    <button class="btn small" type="button" id="sendShow" aria-label="Show what you type"><svg class="i"><use href="#i-eye"/></svg></button>
+    <button class="btn small primary" type="submit"><svg class="i"><use href="#i-send"/></svg>Send</button>
+  </form>
+  <div class="term-note"><svg class="i"><use href="#i-alert"/></svg>
+    <span>Anything typed here travels unencrypted (plain HTTP) over your network. Typing passwords on the machine itself is safer.</span></div>
+</section>
 
-<div class="toast" id="toast" role="status"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
 <script>
 "use strict";
 // Fallback schema for standalone use (opening this file directly). When served
@@ -237,30 +331,31 @@ const PRESETS = {
     KERNEL: "linux-lts", SSH: "yes", FIREWALL: "ufw", SWAP: "file", ADDITIONAL_PACKAGES: "vim htop tmux rsync" },
 };
 
+const LABELS = { USERNAME: "Username" };
 const HELP = {
-  FILESYSTEM: "btrfs gets subvolumes (@, @home, @log, @pkg, @snapshots) with zstd compression.",
-  ENCRYPT: "Full-disk encryption of the root partition. You type the passphrase at every boot.",
-  EFI_SIZE: "UEFI only. Mounted at /boot and holds the kernels, so keep it at 512M or more.",
-  SWAP: "zram = compressed swap in RAM (recommended). file = swap file on disk (needed for hibernation).",
-  BOOTLOADER: "systemd-boot is simpler and faster but needs UEFI; BIOS machines always use GRUB.",
-  KERNEL: "linux-lts for stability, linux-zen for desktop/gaming responsiveness.",
-  TIMEZONE: "Region/City, for example Europe/Berlin or America/New_York.",
-  LOCALE: "For example en_US.UTF-8, en_GB.UTF-8, de_DE.UTF-8.",
-  KEYMAP: "Console keyboard layout, for example us, uk, de-latin1, fr.",
-  USERNAME: "Lowercase letters, digits, - and _. Passwords are typed in the terminal when the install starts.",
-  ROOT_PASSWORD_MODE: "lock disables root login (use sudo). same reuses the user password. prompt asks for a separate one.",
-  DISPLAY_MANAGER: "auto picks the best login screen for the chosen desktop.",
-  GPU_DRIVER: "auto detects the graphics card (and VirtualBox, VMware, QEMU and Hyper-V guests).",
-  MICROCODE: "CPU security and stability updates. auto detects Intel or AMD.",
-  NETWORK: "NetworkManager is easiest (nmcli / nmtui). iwd + systemd-networkd is lighter.",
-  FIREWALL: "ufw denies incoming connections by default (SSH stays allowed if enabled).",
-  MIRROR_COUNTRY: "Rank the fastest mirrors in these countries with reflector, e.g. Germany or US,Canada.",
+  DISK: "Everything on the selected disk is erased.",
+  FILESYSTEM: "btrfs adds subvolumes (@, @home, @log, @pkg, @snapshots) with zstd compression.",
+  ENCRYPT: "Encrypts the root partition. You type the passphrase at every boot.",
+  EFI_SIZE: "Holds the kernels and bootloader; keep it at 512M or more.",
+  SWAP: "zram is compressed swap in RAM (recommended). A swap file is needed for hibernation.",
+  BOOTLOADER: "systemd-boot is simpler but needs UEFI; BIOS machines always use GRUB.",
+  KERNEL: "linux-lts for stability, linux-zen for desktop and gaming responsiveness.",
+  TIMEZONE: "Region/City, for example Europe/Berlin or America/Edmonton.",
+  LOCALE: "For example en_US.UTF-8, en_CA.UTF-8, de_DE.UTF-8.",
+  KEYMAP: "Console keyboard layout: us, uk, de-latin1, fr…",
+  USERNAME: "Lowercase letters, digits, - and _.",
+  ROOT_PASSWORD_MODE: "lock disables root login (use sudo). same reuses your password. prompt sets a separate one.",
+  DISPLAY_MANAGER: "auto picks the login screen that fits the desktop.",
+  GPU_DRIVER: "auto detects the graphics card, including VirtualBox, VMware, QEMU and Hyper-V guests.",
+  MICROCODE: "CPU security and stability updates.",
+  NETWORK: "NetworkManager is the easiest (nmtui). iwd + systemd-networkd is lighter.",
+  FIREWALL: "ufw blocks incoming connections (SSH stays allowed when enabled).",
+  MIRROR_COUNTRY: "Rank the fastest mirrors in these countries, e.g. Canada or US,Canada.",
   MULTILIB: "32-bit libraries, needed for Steam and Wine.",
-  AUR_HELPER: "Installed from the AUR as your user after the base system.",
-  ADDITIONAL_PACKAGES: "Any packages from the official repos. Press Enter or space to add.",
+  AUR_HELPER: "Built from the AUR as your user after the base system.",
+  ADDITIONAL_PACKAGES: "Any package from the official repos. Press Enter or space to add.",
   ADDITIONAL_SERVICES: "systemd units to enable, e.g. docker.service.",
 };
-
 const DESKTOPS = {
   none: ["No desktop", "Console only"], xfce: ["Xfce", "Light, classic"], gnome: ["GNOME", "Modern, Wayland"],
   kde: ["KDE Plasma", "Full featured"], cinnamon: ["Cinnamon", "Familiar layout"], mate: ["MATE", "GNOME 2 style"],
@@ -268,18 +363,28 @@ const DESKTOPS = {
   sway: ["Sway", "Tiling, Wayland"], hyprland: ["Hyprland", "Animated tiling"],
 };
 const PKG_SUGGEST = ["firefox", "chromium", "vim", "neovim", "htop", "btop", "fastfetch", "git", "wget", "kitty",
-  "alacritty", "vlc", "mpv", "libreoffice-fresh", "gimp", "obs-studio", "docker", "flatpak", "steam", "discord", "code"];
-const SECTION_ICONS = { Disk: "💽", Boot: "⚡", System: "🖥️", Users: "👤", Desktop: "🪟", Hardware: "🔧",
-  Network: "🌐", Packages: "📦", Finish: "🏁" };
+  "vlc", "mpv", "libreoffice-fresh", "gimp", "obs-studio", "docker", "flatpak", "steam", "discord", "code"];
+
+// Wizard steps and the schema sections each one shows.
+const STEPS = [
+  { id: "disk", title: "Disk", sections: ["Disk"], lead: "Pick the drive and how it is laid out." },
+  { id: "system", title: "System", sections: ["System", "Boot"], lead: "Name, region and how the machine boots." },
+  { id: "account", title: "Account", sections: ["Users"], lead: "Your user account. Passwords come at the end." },
+  { id: "desktop", title: "Desktop", sections: ["Desktop"], lead: "What you see after logging in." },
+  { id: "hardware", title: "Hardware", sections: ["Hardware"], lead: "Drivers and devices. Auto detection is usually right." },
+  { id: "software", title: "Software", sections: ["Network", "Packages", "Finish"], lead: "Networking, extra packages and finishing touches." },
+  { id: "review", title: "Review & install", sections: [], lead: "Check everything, then start the install." },
+];
 
 // ------------------------------------------------------------------ state ---
-// Access code: http://host/<code> or http://host/?token=<code>
 const token = (new URLSearchParams(location.search).get("token")
   || location.pathname.replace(/^\/+|\/+$/g, "").replace(/^index\.html$/, "")).toLowerCase();
 let schema = EMBEDDED_SCHEMA;
 let config = { ...DEFAULTS };
-let info = null;
-let online = false;
+let info = null, online = false, step = 0;
+const visited = new Set([0]);
+const pw = { enabled: false, user: "", user2: "", root: "", root2: "", luks: "", luks2: "" };
+let confirmText = "", planText = "", serverErrors = [];
 const $ = (id) => document.getElementById(id);
 
 async function api(path, body) {
@@ -292,99 +397,30 @@ async function api(path, body) {
   if (!res.ok && !data.errors) throw new Error(data.error || res.statusText);
   return data;
 }
-
 function toast(msg) {
   const t = $("toast"); t.textContent = msg; t.classList.add("show");
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2600);
 }
-
 function el(tag, attrs = {}, ...kids) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
     else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v);
   }
-  for (const k of kids.flat()) if (k != null) e.append(k);
+  for (const k of kids.flat()) if (k != null && k !== false) e.append(k);
   return e;
 }
-
-const fmtSize = (b) => b >= 1e12 ? (b / 1e12).toFixed(1) + " TB" : (b / 1e9).toFixed(0) + " GB";
-
-// ----------------------------------------------------------------- render ---
-function set(key, value) { config[key] = value; render(); }
-
-function enumControl(opt) {
-  return el("div", { class: "seg", role: "group", "aria-label": opt.label },
-    opt.choices.map((c) => el("button", { type: "button", "aria-pressed": String(config[opt.key] === c),
-      onclick: () => set(opt.key, c) }, c)));
+function icon(name) {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  s.setAttribute("class", "i"); s.setAttribute("aria-hidden", "true");
+  const u = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  u.setAttribute("href", "#i-" + name); s.append(u); return s;
 }
-
-function desktopControl(opt) {
-  return el("div", { class: "grid-cards" }, opt.choices.map((c) => {
-    const [name, desc] = DESKTOPS[c] || [c, ""];
-    return el("button", { type: "button", class: "de", "aria-pressed": String(config.DESKTOP === c),
-      onclick: () => set("DESKTOP", c) }, el("b", {}, name), el("small", {}, desc));
-  }));
-}
-
-function diskControl() {
-  const disks = info?.disks || [];
-  const wrap = el("div", { class: "disks" });
-  if (!online) {
-    wrap.append(el("button", { type: "button", class: "disk", "aria-pressed": String(!config.DISK),
-      onclick: () => set("DISK", "") }, el("b", {}, "Ask during install"), el("small", {}, "Choose the disk in the terminal")));
-  }
-  for (const d of disks) {
-    const meta = [fmtSize(d.size), d.model, d.tran?.toUpperCase(), d.removable && "removable", d.live_iso && "live ISO — cannot install here"]
-      .filter(Boolean).join(" · ");
-    wrap.append(el("button", { type: "button", class: "disk", disabled: d.live_iso, "aria-pressed": String(config.DISK === d.path),
-      onclick: () => set("DISK", d.path) }, el("b", {}, d.path), el("small", {}, meta)));
-  }
-  if (!online || !disks.length) {
-    const input = el("input", { type: "text", value: config.DISK, placeholder: "/dev/sda or /dev/nvme0n1",
-      onchange: (e) => set("DISK", e.target.value.trim()) });
-    wrap.append(input);
-  }
-  return wrap;
-}
-
-function packagesControl(opt) {
-  const list = () => config[opt.key].split(/[\s,]+/).filter(Boolean);
-  const write = (arr) => set(opt.key, [...new Set(arr)].join(" "));
-  const input = el("input", { type: "text", placeholder: opt.key === "ADDITIONAL_PACKAGES" ? "add package…" : "add service…",
-    "aria-label": opt.label,
-    onkeydown: (e) => {
-      if ((e.key === "Enter" || e.key === " " || e.key === ",") && e.target.value.trim()) {
-        e.preventDefault(); const v = e.target.value.trim(); e.target.value = "";
-        if (new RegExp(opt.pattern).test(v)) { write([...list(), v]); refocus = opt.key; }
-        else toast("Invalid name: " + v);
-      } else if (e.key === "Backspace" && !e.target.value && list().length) {
-        write(list().slice(0, -1)); refocus = opt.key;
-      }
-    } });
-  input.dataset.key = opt.key;
-  const tags = el("div", { class: "tags", onclick: () => input.focus() },
-    list().map((p) => el("span", {}, p, el("button", { type: "button", "aria-label": "Remove " + p,
-      onclick: (e) => { e.stopPropagation(); write(list().filter((x) => x !== p)); } }, "×"))), input);
-  if (opt.key !== "ADDITIONAL_PACKAGES") return tags;
-  const sugg = el("div", { class: "suggest" }, PKG_SUGGEST.filter((p) => !list().includes(p))
-    .map((p) => el("button", { type: "button", onclick: () => write([...list(), p]) }, "+ " + p)));
-  return el("div", {}, tags, sugg);
-}
-
-function textControl(opt) {
-  const input = el("input", { type: "text", value: config[opt.key], spellcheck: "false", "aria-label": opt.label,
-    oninput: (e) => { config[opt.key] = e.target.value; e.target.closest(".field").classList.toggle("invalid", !valid(opt, e.target.value)); renderSide(); },
-    onchange: () => render() });
-  if (opt.key === "TIMEZONE") {
-    try {
-      const dl = el("datalist", { id: "tzlist" }, Intl.supportedValuesOf("timeZone").map((z) => el("option", { value: z })));
-      input.setAttribute("list", "tzlist");
-      return el("div", {}, input, dl);
-    } catch { /* older browser */ }
-  }
-  return input;
-}
+const fmtSize = (b) => b >= 1e12 ? (b / 1e12).toFixed(1) + " TB" : Math.round(b / 1e9) + " GB";
+const opt = (key) => schema.find((o) => o.key === key);
+const valid = (o, v) => o.kind === "enum" ? o.choices.includes(v)
+  : o.kind === "text" ? new RegExp(o.pattern).test(v) : /^(\/dev\/[A-Za-z0-9/_-]+)?$/.test(v);
+const label = (o) => LABELS[o.key] || o.label;
 
 function visible(key) {
   switch (key) {
@@ -394,46 +430,235 @@ function visible(key) {
     default: return true;
   }
 }
-
-const valid = (opt, v) => opt.kind === "enum" ? opt.choices.includes(v)
-  : opt.kind === "text" ? new RegExp(opt.pattern).test(v) : /^(\/dev\/[A-Za-z0-9/_-]+)?$/.test(v);
-
-let refocus = null;
-function render() {
-  const form = $("form");
-  const scroll = window.scrollY;
-  form.replaceChildren();
-  const sections = [...new Set(schema.map((o) => o.section))];
-  for (const s of sections) {
-    const card = el("section", { class: "card" }, el("h2", {}, el("span", { "aria-hidden": "true" }, SECTION_ICONS[s] || "•"), s));
-    for (const opt of schema.filter((o) => o.section === s)) {
-      let control;
-      if (opt.key === "DISK") control = diskControl();
-      else if (opt.key === "DESKTOP") control = desktopControl(opt);
-      else if (opt.key === "ADDITIONAL_PACKAGES" || opt.key === "ADDITIONAL_SERVICES") control = packagesControl(opt);
-      else if (opt.kind === "enum") control = enumControl(opt);
-      else control = textControl(opt);
-      let help = HELP[opt.key] || "";
-      if (opt.key === "GPU_DRIVER" && info) help += ` Detected: ${info.gpu}${info.gpus.length ? " (" + info.gpus.join("; ") + ")" : ""}.`;
-      if (opt.key === "MICROCODE" && info) help += ` Detected: ${info.cpu}.`;
-      if (opt.key === "BOOTLOADER" && info?.boot_mode === "BIOS") help += " This machine booted in BIOS mode.";
-      const field = el("div", { class: "field" + (visible(opt.key) ? "" : " hidden") + (valid(opt, config[opt.key] ?? "") ? "" : " invalid") },
-        el("label", { class: "name" }, opt.label), control, help ? el("div", { class: "help" }, help) : null);
-      card.append(field);
-    }
-    form.append(card);
+function stepKeys(i) { return schema.filter((o) => STEPS[i].sections.includes(o.section)).map((o) => o.key); }
+function stepErrors(i) {
+  const errs = stepKeys(i).filter((k) => visible(k) && !valid(opt(k), config[k] ?? "")).map((k) => `${label(opt(k))} has an invalid value.`);
+  if (STEPS[i].id === "disk" && online && !config.DISK) errs.push("Pick a disk.");
+  if (STEPS[i].id === "account" && online && !config.USERNAME) errs.push("Enter a username.");
+  if (STEPS[i].id === "account" && config.USERNAME === "root") errs.push("The username cannot be root.");
+  return errs;
+}
+function pwErrors() {
+  if (!pw.enabled) return [];
+  const need = [["user", "Your password", "The passwords"]];
+  if (config.ROOT_PASSWORD_MODE === "prompt") need.push(["root", "The root password", "The root passwords"]);
+  if (config.ENCRYPT === "yes") need.push(["luks", "The encryption passphrase", "The passphrases"]);
+  const e = [];
+  for (const [k, name, plural] of need) {
+    if (!pw[k]) e.push(`${name} is empty.`);
+    else if (pw[k] !== pw[k + "2"]) e.push(`${plural} do not match.`);
   }
-  window.scrollTo(0, scroll);
-  // Any change invalidates a previously shown plan.
-  if ($("outTitle").dataset.mode === "plan") { $("outTitle").dataset.mode = ""; $("outTitle").textContent = "Generated config"; }
-  if (refocus) { form.querySelector(`input[data-key="${refocus}"]`)?.focus(); refocus = null; }
-  renderSide();
+  return e;
+}
+const confirmOk = () => !!config.DISK && (confirmText.trim() === config.DISK || "/dev/" + confirmText.trim() === config.DISK);
+
+// ---------------------------------------------------------------- controls ---
+function set(key, value) { config[key] = value; planText = ""; render(); }
+
+function segControl(o) {
+  return el("div", { class: "seg", role: "group", "aria-label": label(o) },
+    o.choices.map((c) => el("button", { type: "button", "aria-pressed": String(config[o.key] === c), onclick: () => set(o.key, c) }, c)));
+}
+function textControl(o) {
+  const input = el("input", { class: "text", id: "f-" + o.key, type: "text", value: config[o.key], spellcheck: "false", autocomplete: "off", autocapitalize: "off",
+    oninput: (e) => { config[o.key] = e.target.value; planText = "";
+      e.target.closest(".field").classList.toggle("invalid", !valid(o, e.target.value)); renderNav(); },
+    onchange: () => render() });
+  if (o.key === "TIMEZONE") {
+    try {
+      const zones = Intl.supportedValuesOf("timeZone");
+      input.setAttribute("list", "tzlist");
+      return el("div", {}, input, el("datalist", { id: "tzlist" }, zones.map((z) => el("option", { value: z }))));
+    } catch { /* older browser */ }
+  }
+  return input;
+}
+function card(pressed, onclick, iconName, title, sub, disabled = false) {
+  return el("button", { type: "button", class: "card", disabled, "aria-pressed": String(pressed), onclick },
+    iconName ? icon(iconName) : null, el("span", {}, el("span", { class: "t" }, title), el("span", { class: "s" }, sub)),
+    el("span", { class: "tick" }, icon("check")));
+}
+function diskControl() {
+  const disks = info?.disks || [];
+  const wrap = el("div", { class: "cards wide", role: "group", "aria-label": "Disks" });
+  if (!online) wrap.append(card(!config.DISK, () => set("DISK", ""), "disk", "Ask during install", "Choose the disk in the terminal"));
+  for (const d of disks) {
+    const meta = [fmtSize(d.size), d.model, d.tran?.toUpperCase(), d.removable && "removable", d.live_iso && "live ISO, can't install here"].filter(Boolean).join(" · ");
+    wrap.append(card(config.DISK === d.path, () => set("DISK", d.path), "disk", d.path, meta, d.live_iso));
+  }
+  if (!online || !disks.length) wrap.append(el("input", { class: "text", type: "text", value: config.DISK, placeholder: "/dev/sda or /dev/nvme0n1",
+    "aria-label": "Disk path", onchange: (e) => set("DISK", e.target.value.trim()) }));
+  return wrap;
+}
+function desktopControl(o) {
+  return el("div", { class: "cards", role: "group", "aria-label": "Desktop" }, o.choices.map((c) => {
+    const [name, desc] = DESKTOPS[c] || [c, ""];
+    return card(config.DESKTOP === c, () => set("DESKTOP", c), null, name, desc);
+  }));
+}
+let refocus = null;
+function tagsControl(o) {
+  const list = () => (config[o.key] || "").split(/[\s,]+/).filter(Boolean);
+  const write = (arr) => set(o.key, [...new Set(arr)].join(" "));
+  const input = el("input", { "data-key": o.key, placeholder: o.key === "ADDITIONAL_PACKAGES" ? "add package…" : "add service…", "aria-label": label(o),
+    autocapitalize: "off", spellcheck: "false",
+    onkeydown: (e) => {
+      if ((e.key === "Enter" || e.key === " " || e.key === ",") && e.target.value.trim()) {
+        e.preventDefault(); const v = e.target.value.trim();
+        if (new RegExp(o.pattern).test(v)) { refocus = o.key; write([...list(), v]); } else toast("Invalid name: " + v);
+      } else if (e.key === "Backspace" && !e.target.value && list().length) { refocus = o.key; write(list().slice(0, -1)); }
+    } });
+  const tags = el("div", { class: "tags", onclick: () => input.focus() },
+    list().map((p) => el("span", { class: "tag" }, p, el("button", { type: "button", "aria-label": "Remove " + p,
+      onclick: (e) => { e.stopPropagation(); write(list().filter((x) => x !== p)); } }, "×"))), input);
+  if (o.key !== "ADDITIONAL_PACKAGES") return tags;
+  return el("div", {}, tags, el("div", { class: "suggest" }, PKG_SUGGEST.filter((p) => !list().includes(p))
+    .map((p) => el("button", { type: "button", onclick: () => write([...list(), p]) }, "+ " + p))));
+}
+function fieldFor(o) {
+  let control;
+  if (o.key === "DISK") control = diskControl();
+  else if (o.key === "DESKTOP") control = desktopControl(o);
+  else if (o.key === "ADDITIONAL_PACKAGES" || o.key === "ADDITIONAL_SERVICES") control = tagsControl(o);
+  else if (o.kind === "enum") control = segControl(o);
+  else control = textControl(o);
+  let help = HELP[o.key] || "";
+  if (o.key === "GPU_DRIVER" && info) help += ` Detected: ${info.gpu}${info.gpus.length ? " (" + info.gpus.join("; ") + ")" : ""}.`;
+  if (o.key === "MICROCODE" && info) help += ` Detected: ${info.cpu}.`;
+  if (o.key === "BOOTLOADER" && info?.boot_mode === "BIOS") help += " This machine booted in BIOS mode.";
+  const isText = o.kind === "text" && !["ADDITIONAL_PACKAGES", "ADDITIONAL_SERVICES"].includes(o.key);
+  const head = isText ? el("label", { for: "f-" + o.key }, label(o)) : el("span", { class: "label" }, label(o));
+  return el("div", { class: "field" + (valid(o, config[o.key] ?? "") ? "" : " invalid") }, head, control,
+    help ? el("div", { class: "help" }, help) : null);
 }
 
+// ------------------------------------------------------------------ review ---
+const yn = (v) => (v === "yes" ? "yes" : "no");
+function summaryRows() {
+  const dm = config.DESKTOP === "none" ? "none" : config.DISPLAY_MANAGER;
+  return [
+    [0, [["Disk", config.DISK || "ask in terminal"], ["Filesystem", config.FILESYSTEM + (config.ENCRYPT === "yes" ? " + LUKS2" : "")],
+      ["Swap", config.SWAP === "file" ? `file (${config.SWAP_SIZE})` : config.SWAP]]],
+    [1, [["Hostname", config.HOSTNAME], ["Time zone", config.TIMEZONE], ["Locale / keys", `${config.LOCALE} / ${config.KEYMAP}`],
+      ["Boot", `${config.BOOTLOADER} · ${config.KERNEL}`]]],
+    [2, [["User", config.USERNAME || "ask in terminal"], ["Shell / sudo", `${config.USER_SHELL} / ${yn(config.USER_SUDO)}`], ["Root", config.ROOT_PASSWORD_MODE]]],
+    [3, [["Desktop", `${DESKTOPS[config.DESKTOP]?.[0] || config.DESKTOP}${dm !== "none" ? " · " + dm : ""}`]]],
+    [4, [["GPU / CPU", `${config.GPU_DRIVER} / ${config.MICROCODE}`], ["Audio", config.AUDIO], ["Bluetooth / print", `${yn(config.BLUETOOTH)} / ${yn(config.PRINTING)}`]]],
+    [5, [["Network", [config.NETWORK, config.SSH === "yes" && "sshd", config.FIREWALL !== "none" && config.FIREWALL].filter(Boolean).join(" · ")],
+      ["Extras", config.ADDITIONAL_PACKAGES || "none"], ["AUR helper", config.AUR_HELPER], ["Reboot when done", yn(config.REBOOT_WHEN_DONE)]]],
+  ];
+}
+function pwInput(key, text) {
+  const id = "pw-" + key;
+  const input = el("input", { class: "text", id, type: "password", value: pw[key], autocomplete: "new-password",
+    oninput: (e) => { pw[key] = e.target.value; updateInstallState(); } });
+  const eye = el("button", { type: "button", class: "eye", "aria-label": "Show " + text,
+    onclick: () => { const show = input.type === "password"; input.type = show ? "text" : "password";
+      eye.replaceChildren(icon(show ? "eyeoff" : "eye")); eye.setAttribute("aria-label", (show ? "Hide " : "Show ") + text); } }, icon("eye"));
+  return el("div", { class: "pw" }, el("label", { for: id }, text), el("div", { class: "wrap" }, input, eye));
+}
+function reviewPage() {
+  const blocks = summaryRows().map(([i, rows]) => el("div", { class: "panel" },
+    el("h2", {}, STEPS[i].title, el("button", { type: "button", class: "btn small ghost", onclick: () => go(i) }, "Edit")),
+    el("dl", { class: "sum" }, rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, v)]))));
+
+  const planPanel = el("div", { class: "panel" },
+    el("h2", {}, icon("list"), "Install plan",
+      online ? el("button", { type: "button", class: "btn small", id: "planBtn", onclick: checkPlan }, planText ? "Refresh" : "Show packages") : null),
+    planText ? el("pre", { class: "plan" }, planText)
+      : el("p", { class: "help", style: "margin:0" }, online ? "See exactly which packages and services will be installed." : "Open the dashboard from ./install.sh --web to check the plan."));
+
+  const pwPanel = online ? el("div", { class: "panel" },
+    el("h2", {}, icon("lock"), "Passwords"),
+    el("label", { class: "switch" }, el("input", { type: "checkbox", role: "switch", checked: pw.enabled,
+      onchange: (e) => { pw.enabled = e.target.checked; render(); } }), "Type passwords here instead of in the terminal"),
+    pw.enabled
+      ? el("div", {},
+          el("div", { class: "callout warn", role: "note", style: "margin-top:8px" }, icon("alert"), el("div", {},
+            el("p", {}, el("b", {}, "Not secure. "), "This page uses plain HTTP, so passwords travel unencrypted over your network and anyone on it could read them."),
+            el("p", {}, "They go straight to the installer's memory and are never saved to disk or the log. Only use this on a network you trust, and consider changing them after the first boot."))),
+          el("div", { class: "pw-grid" },
+            pwInput("user", `Password for ${config.USERNAME || "your user"}`), pwInput("user2", "Repeat password"),
+            config.ROOT_PASSWORD_MODE === "prompt" && pwInput("root", "Root password"),
+            config.ROOT_PASSWORD_MODE === "prompt" && pwInput("root2", "Repeat root password"),
+            config.ENCRYPT === "yes" && pwInput("luks", "Encryption passphrase"),
+            config.ENCRYPT === "yes" && pwInput("luks2", "Repeat passphrase")))
+      : el("p", { class: "help", style: "margin:4px 0 0" }, "The installer asks for them when it starts. Type them in the web terminal, or on the machine's own keyboard (safer).")) : null;
+
+  const goPanel = online ? el("div", { class: "panel" },
+    el("h2", {}, icon("alert"), "Erase and install"),
+    el("div", { class: "callout danger", style: "margin-bottom:16px" }, icon("disk"),
+      el("p", {}, "Everything on ", el("b", { class: "mono" }, config.DISK || "the disk"), " will be permanently erased.")),
+    el("label", { for: "confirmInput", style: "display:block;font-weight:500;margin-bottom:8px" }, "Type ", el("span", { class: "mono" }, config.DISK || "the disk"), " to confirm"),
+    el("input", { class: "text", id: "confirmInput", type: "text", value: confirmText, autocomplete: "off", autocapitalize: "off", spellcheck: "false",
+      oninput: (e) => { confirmText = e.target.value; updateInstallState(); },
+      onkeydown: (e) => { if (e.key === "Enter" && !$("installBtn").disabled) startInstall(); } }),
+    el("ul", { class: "errs", id: "installErrs", "aria-live": "polite" }),
+    el("div", { style: "display:flex;gap:8px;flex-wrap:wrap;margin-top:16px" },
+      el("button", { type: "button", class: "btn go", id: "installBtn", onclick: startInstall }, icon("play"), "Install Arch Linux"),
+      el("button", { type: "button", class: "btn", onclick: saveOnly }, icon("save"), "Save config only"))) : null;
+
+  const filePanel = el("div", { class: "panel" }, el("h2", {}, "Config file"),
+    el("div", { style: "display:flex;gap:8px;flex-wrap:wrap" },
+      el("button", { type: "button", class: "btn small", onclick: download }, icon("download"), "Download"),
+      el("label", { class: "btn small" }, icon("upload"), "Import", el("input", { type: "file", hidden: true, onchange: importFile }))),
+    online ? null : el("p", { class: "help" }, "Copy the downloaded file to the installer as ./config, or run ./install.sh --web on the target machine to install from here."));
+
+  return el("div", { class: "review" }, ...blocks, planPanel, pwPanel, goPanel, filePanel);
+}
+function installProblems() {
+  const e = [];
+  STEPS.slice(0, -1).forEach((s, i) => stepErrors(i).forEach((m) => e.push(`${s.title}: ${m}`)));
+  return e.concat(pwErrors());
+}
+function updateInstallState() {
+  if (!$("installBtn")) return;
+  const problems = installProblems();
+  const confirmMissing = config.DISK && !confirmOk();
+  $("installBtn").disabled = problems.length > 0 || confirmMissing || !config.DISK;
+  const shown = [...problems, ...serverErrors];
+  if (confirmMissing && confirmText.trim()) shown.push(`That doesn't match ${config.DISK}.`);
+  $("installErrs").replaceChildren(...shown.map((m) => el("li", {}, m)));
+}
+
+// ------------------------------------------------------------------ render ---
+function renderNav() {
+  $("stepList").replaceChildren(...STEPS.map((s, i) => {
+    const errs = i < STEPS.length - 1 ? stepErrors(i) : [];
+    const cls = i !== step && visited.has(i) && i < STEPS.length - 1 ? (errs.length ? "err" : "done") : "";
+    return el("li", {}, el("button", { type: "button", class: cls, "aria-current": i === step ? "step" : false, onclick: () => go(i) },
+      el("span", { class: "num" }, cls === "done" ? icon("check") : String(i + 1)), el("span", { class: "lbl" }, s.title)));
+  }));
+  $("stepCount").textContent = `Step ${step + 1} of ${STEPS.length}`;
+  $("backBtn").disabled = step === 0;
+  $("nextBtn").hidden = step === STEPS.length - 1;
+  $("nextBtn").replaceChildren(step === STEPS.length - 2 ? "Review" : "Next", icon("right"));
+}
+function render() {
+  const s = STEPS[step];
+  const scroll = window.scrollY;
+  const body = s.id === "review" ? reviewPage() : el("div", {}, schema.filter((o) => s.sections.includes(o.section) && visible(o.key)).map(fieldFor));
+  $("main").replaceChildren(el("div", { class: "page-head" }, el("div", { class: "eyebrow" }, `Step ${step + 1} · ${s.title}`),
+    el("h1", {}, s.id === "review" ? "Ready to install?" : s.title), el("p", {}, s.lead)), body);
+  window.scrollTo(0, scroll);
+  if (refocus) { $("main").querySelector(`input[data-key="${refocus}"]`)?.focus(); refocus = null; }
+  renderNav();
+  updateInstallState();
+}
+function go(i) {
+  step = Math.max(0, Math.min(STEPS.length - 1, i)); visited.add(step); serverErrors = [];
+  render(); window.scrollTo(0, 0); $("main").focus({ preventScroll: true });
+}
+$("backBtn").onclick = () => go(step - 1);
+$("nextBtn").onclick = () => go(step + 1);
+for (const [name, values] of Object.entries(PRESETS)) {
+  $("presets").append(el("button", { type: "button", class: "btn small", onclick: () => { Object.assign(config, values); planText = ""; render(); toast(name + " preset applied"); } }, name));
+}
+
+// ----------------------------------------------------------------- actions ---
 function configText() {
   const q = (v) => "'" + String(v).replace(/'/g, "'\\''") + "'";
-  const lines = ["# arch-autoinstaller config, generated by the web dashboard " + new Date().toISOString().slice(0, 10),
-    "# Use with: ./install.sh --config <this file>"];
+  const lines = ["# arch-autoinstaller config, generated by the web dashboard " + new Date().toISOString().slice(0, 10)];
   let section = "";
   for (const o of schema) {
     if (o.section !== section) { lines.push("", "# --- " + o.section); section = o.section; }
@@ -441,135 +666,144 @@ function configText() {
   }
   return lines.join("\n") + "\n";
 }
-
-// Everything the terminal would otherwise ask for, except passwords.
-function installMissing() {
-  const m = [];
-  if (!config.DISK) m.push("a disk");
-  if (!config.USERNAME) m.push("a username");
-  return m;
-}
-
-function errorsList() {
-  return schema.filter((o) => !valid(o, config[o.key] ?? "")).map((o) => `${o.label}: invalid value “${config[o.key]}”`);
-}
-
-function renderSide() {
-  const dm = config.DESKTOP === "none" ? "none" : config.DISPLAY_MANAGER;
-  const rows = [
-    ["Disk", config.DISK || "ask"], ["Filesystem", config.FILESYSTEM + (config.ENCRYPT === "yes" ? " + LUKS" : "")],
-    ["Boot", `${config.BOOTLOADER} · ${config.KERNEL}`], ["Desktop", `${DESKTOPS[config.DESKTOP]?.[0] || config.DESKTOP}${dm !== "none" ? " · " + dm : ""}`],
-    ["User", config.USERNAME || "ask"], ["Host", config.HOSTNAME], ["Time zone", config.TIMEZONE],
-    ["Extras", config.ADDITIONAL_PACKAGES.split(/\s+/).filter(Boolean).length + " packages"],
-  ];
-  $("summary").replaceChildren(...rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, v)]));
-  $("dangerNote").textContent = config.DISK ? `⚠ All data on ${config.DISK} will be erased.` : "";
-  const errs = errorsList();
-  $("errors").replaceChildren(...errs.map((e) => el("li", {}, e)));
-  for (const id of ["saveBtn", "installBtn", "checkBtn", "downloadBtn", "copyBtn"]) $(id).disabled = errs.length > 0;
-  const missing = installMissing();
-  $("installHint").textContent = online && !errs.length && missing.length ? "To install, still needed: " + missing.join(", ") + "." : "";
-  $("installBtn").disabled = errs.length > 0 || missing.length > 0;
-  if (!online) $("installBtn").hidden = true, $("serverActions").hidden = true;
-  if ($("outTitle").dataset.mode !== "plan") $("output").textContent = configText();
-}
-
-// ---------------------------------------------------------------- actions ---
-function setOutput(title, text, mode = "config") {
-  $("outTitle").textContent = title; $("outTitle").dataset.mode = mode; $("output").textContent = text;
-}
-
-$("checkBtn").onclick = async () => {
-  setOutput("Install plan", "Running install.sh --check …", "plan");
-  try {
-    const r = await api("/api/plan", { config });
-    setOutput(r.ok ? "Install plan ✓" : "Install plan — problems", r.output || (r.errors || []).join("\n"), "plan");
-  } catch (e) { setOutput("Install plan", "Failed: " + e.message, "plan"); }
-};
-$("output").ondblclick = () => setOutput("Generated config", configText());
-
-async function save(path) {
-  const r = await api(path, { config });
-  if (!r.ok) { toast("Not saved: " + (r.errors || []).join(", ")); return false; }
-  return true;
-}
-$("saveBtn").onclick = async () => { try { if (await save("/api/save")) toast("Config saved on the installer"); } catch (e) { toast("Save failed: " + e.message); } };
-$("installBtn").onclick = () => {
-  $("confirmDisk").textContent = $("confirmDisk2").textContent = config.DISK;
-  $("confirmLuks").hidden = config.ENCRYPT !== "yes";
-  $("confirmInput").value = "";
-  $("confirmErrors").replaceChildren();
-  $("doInstall").disabled = true;
-  $("confirm").showModal();
-  $("confirmInput").focus();
-};
-const confirmMatches = () => { const v = $("confirmInput").value.trim(); return v === config.DISK || "/dev/" + v === config.DISK; };
-$("confirmInput").oninput = () => { $("doInstall").disabled = !confirmMatches(); };
-$("confirmInput").onkeydown = (e) => { if (e.key === "Enter" && confirmMatches()) $("doInstall").click(); };
-$("cancelInstall").onclick = () => $("confirm").close();
-$("doInstall").onclick = async () => {
-  $("doInstall").disabled = true;
-  try {
-    const r = await api("/api/install", { config, confirm_disk: $("confirmInput").value.trim() });
-    if (!r.ok) {
-      $("confirmErrors").replaceChildren(...(r.errors || ["Unknown error"]).map((e) => el("li", {}, e)));
-      $("doInstall").disabled = !confirmMatches();
-      return;
-    }
-    $("confirm").close();
-    document.body.innerHTML = `<main style="display:block;max-width:640px"><section class="card" style="padding:28px">
-      <h2>Install started</h2><p>Your options are saved. On the target machine, type the passwords when asked
-      and the install continues on its own.</p><p class="muted">You can close this tab.</p></section></main>`;
-  } catch (e) {
-    $("confirmErrors").replaceChildren(el("li", {}, "Failed: " + e.message));
-    $("doInstall").disabled = false;
-  }
-};
-$("downloadBtn").onclick = () => {
+function download() {
   const a = el("a", { href: URL.createObjectURL(new Blob([configText()], { type: "text/plain" })), download: "config" });
-  a.click(); URL.revokeObjectURL(a.href);
-};
-$("copyBtn").onclick = async () => {
-  try { await navigator.clipboard.writeText(configText()); toast("Config copied"); }
-  catch { toast("Clipboard not available here; use Download"); }
-};
-$("importFile").onchange = async (e) => {
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+async function importFile(e) {
   const file = e.target.files[0]; if (!file) return;
-  const text = await file.text();
   let n = 0;
-  for (const line of text.split("\n")) {
+  for (const line of (await file.text()).split("\n")) {
     const m = line.match(/^([A-Z_]+)=(?:'((?:[^']|'\\'')*)'|"([^"]*)"|(\S*))\s*$/);
     if (m && m[1] in DEFAULTS) { config[m[1]] = (m[2] ?? "").replace(/'\\''/g, "'") || m[3] || m[4] || ""; n++; }
   }
   if (config.LOCALE.endsWith(" UTF-8")) config.LOCALE = config.LOCALE.slice(0, -6);
   if (config.DISK && !config.DISK.startsWith("/")) config.DISK = "/dev/" + config.DISK;
-  toast(`Imported ${n} options`); render(); e.target.value = "";
-};
-
-for (const [name, values] of Object.entries(PRESETS)) {
-  $("presets").append(el("button", { type: "button", class: "btn", onclick: () => { Object.assign(config, values); render(); toast(name + " preset applied"); } }, name));
+  toast(`Imported ${n} options`); render();
 }
-$("presets").append(el("button", { type: "button", class: "btn", onclick: () => { config = { ...DEFAULTS }; render(); toast("Reset to defaults"); } }, "Reset"));
+async function checkPlan() {
+  $("planBtn").disabled = true; $("planBtn").textContent = "Checking…";
+  try {
+    const r = await api("/api/plan", { config });
+    planText = r.output || (r.errors || []).join("\n");
+  } catch (e) { planText = "Failed: " + e.message; }
+  render();
+}
+async function saveOnly() {
+  try {
+    const r = await api("/api/save", { config });
+    toast(r.ok ? "Config saved on the installer" : "Not saved: " + (r.errors || []).join(", "));
+  } catch (e) { toast("Save failed: " + e.message); }
+}
+async function startInstall() {
+  $("installBtn").disabled = true;
+  const passwords = pw.enabled ? Object.fromEntries([["user", pw.user],
+    ...(config.ROOT_PASSWORD_MODE === "prompt" ? [["root", pw.root]] : []),
+    ...(config.ENCRYPT === "yes" ? [["luks", pw.luks]] : [])]) : {};
+  try {
+    const r = await api("/api/install", { config, confirm_disk: confirmText.trim(), passwords });
+    if (!r.ok) { serverErrors = r.errors || ["Unknown error"]; updateInstallState(); return; }
+    for (const k of Object.keys(pw)) if (k !== "enabled") pw[k] = ""; // forget them in the page
+    confirmText = "";
+    showTerminal();
+  } catch (e) { serverErrors = ["Failed: " + e.message]; updateInstallState(); }
+}
 
-// ------------------------------------------------------------------- boot ---
+// ---------------------------------------------------------------- terminal ---
+let term = null, fit = null, fallbackPre = null, offset = 0, polling = false, startedAt = Date.now(), timer = null;
+const dec = new TextDecoder();
+const stripAnsi = (s) => s.replace(/\x1b\[[0-9;?]*[ -\/]*[@-~]/g, "").replace(/\x1b\][^\x07]*(\x07|\x1b\\)/g, "");
+function showTerminal() {
+  $("wizard").hidden = true; $("footer").hidden = true; $("termview").hidden = false; $("sendbar").hidden = false;
+  if (!term && !fallbackPre) {
+    if (window.Terminal) {
+      term = new Terminal({ cursorBlink: true, scrollback: 20000, fontSize: 13,
+        fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace",
+        theme: { background: "#0b1120", foreground: "#e2e8f0", cursor: "#22c55e", selectionBackground: "#334155",
+          green: "#22c55e", brightGreen: "#4ade80", blue: "#38bdf8", brightBlue: "#7dd3fc", red: "#f87171", yellow: "#fbbf24" } });
+      if (window.FitAddon) { fit = new FitAddon.FitAddon(); term.loadAddon(fit); }
+      term.open($("term"));
+      term.onData((d) => api("/api/term/input", { data: d }).catch(() => {}));
+      const doFit = () => { try { fit?.fit(); api("/api/term/resize", { cols: term.cols, rows: term.rows }).catch(() => {}); } catch { /* hidden */ } };
+      new ResizeObserver(() => { clearTimeout(doFit.t); doFit.t = setTimeout(doFit, 120); }).observe($("term"));
+      doFit(); term.focus();
+    } else {
+      // No CDN access: plain-text view (colours stripped, \r progress lines collapsed).
+      fallbackPre = el("pre", { class: "fallback" }); $("term").append(fallbackPre);
+    }
+  }
+  startedAt = Date.now();
+  clearInterval(timer);
+  timer = setInterval(() => { const s = Math.floor((Date.now() - startedAt) / 1000); $("termTime").textContent = `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`; }, 1000);
+  if (!polling) poll();
+}
+function writeTerm(bytes) {
+  if (term) { term.write(bytes); return; }
+  let cur = fallbackPre.textContent;
+  for (const part of stripAnsi(dec.decode(bytes, { stream: true })).split(/(\r\n|\r|\n)/)) {
+    if (part === "\r") cur = cur.slice(0, cur.lastIndexOf("\n") + 1);
+    else if (part === "\n" || part === "\r\n") cur += "\n";
+    else cur += part;
+  }
+  fallbackPre.textContent = cur.slice(-400000);
+  fallbackPre.scrollTop = fallbackPre.scrollHeight;
+}
+function setStatus(kind, text) { $("termStatus").className = "status " + kind; $("termStatusText").textContent = text; }
+async function poll() {
+  polling = true;
+  for (;;) {
+    try {
+      const r = await api(`/api/term?since=${offset}&wait=1`);
+      if (r.error) throw new Error(r.error);
+      if (r.data) writeTerm(Uint8Array.from(atob(r.data), (c) => c.charCodeAt(0)));
+      offset = r.offset;
+      if (r.done) {
+        clearInterval(timer);
+        if (r.exit_code === 0) setStatus("ok", "Install finished. Remove the USB stick and reboot.");
+        else setStatus("fail", `Installer stopped (exit code ${r.exit_code})`);
+        $("termBack").hidden = r.exit_code === 0; $("sendbar").hidden = true;
+        break;
+      }
+      setStatus("run", "Installing");
+    } catch {
+      setStatus("fail", "Connection lost, retrying…");
+      await new Promise((res) => setTimeout(res, 2000));
+    }
+  }
+  polling = false;
+}
+$("sendbar").onsubmit = (e) => {
+  e.preventDefault();
+  const v = $("sendInput").value; $("sendInput").value = "";
+  api("/api/term/input", { data: v + "\r" }).catch(() => toast("Could not send"));
+};
+$("sendShow").onclick = () => {
+  const i = $("sendInput"), show = i.type === "password"; i.type = show ? "text" : "password";
+  $("sendShow").replaceChildren(icon(show ? "eyeoff" : "eye"));
+  $("sendShow").setAttribute("aria-label", show ? "Hide what you type" : "Show what you type");
+};
+$("termBack").onclick = () => { $("termview").hidden = true; $("wizard").hidden = false; $("footer").hidden = false; go(STEPS.length - 1); };
+
+// -------------------------------------------------------------------- boot ---
 async function boot() {
   try {
     if (location.protocol === "file:") throw new Error("standalone");
-    const [s, c, i] = await Promise.all([api("/api/schema"), api("/api/config"), api("/api/info")]);
+    const [s, c, i, st] = await Promise.all([api("/api/schema"), api("/api/config"), api("/api/info"), api("/api/status")]);
     if (Array.isArray(s) && s.length) schema = s;
     config = { ...DEFAULTS, ...c };
     info = i; online = true;
-    const b = $("badges");
-    b.replaceChildren(
-      el("span", { class: "badge ok" }, "● connected to " + i.hostname),
-      el("span", { class: "badge" + (i.boot_mode === "UEFI" ? " ok" : " warn") }, i.boot_mode),
-      el("span", { class: "badge" }, `CPU ${i.cpu} · GPU ${i.gpu}${i.virt ? " · " + i.virt : ""}`),
-      i.memory ? el("span", { class: "badge" }, (i.memory / 2 ** 30).toFixed(1) + " GiB RAM") : "",
-    );
-    if (!i.live_iso) b.append(el("span", { class: "badge warn" }, "not a live ISO"));
+    $("chips").replaceChildren(...[
+      el("span", { class: "chip ok" }, "● " + i.hostname),
+      el("span", { class: "chip" + (i.boot_mode === "UEFI" ? "" : " warn") }, i.boot_mode),
+      el("span", { class: "chip" }, `${i.cpu} · ${i.gpu}${i.virt ? " · " + i.virt : ""}`),
+      i.memory ? el("span", { class: "chip" }, (i.memory / 2 ** 30).toFixed(1) + " GiB") : null,
+      i.live_iso ? null : el("span", { class: "chip warn" }, "not a live ISO"),
+    ].filter(Boolean));
+    render();
+    if (st.ran) showTerminal();
+    return;
   } catch {
-    $("conn").textContent = "standalone — download the config and copy it to the installer";
-    $("conn").className = "badge warn";
+    $("chips").replaceChildren(el("span", { class: "chip warn" }, "offline: build a config to download"));
   }
   render();
 }

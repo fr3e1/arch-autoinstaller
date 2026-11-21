@@ -86,8 +86,19 @@ check "partition_path" bash -c 'source lib/common.sh
 
 echo "web dashboard server"
 cp config "$TMP/webcfg"
+# Stand-in installer: --check goes to the real one; an install run shows what
+# it received and asks one question through the web terminal.
+cat >"$TMP/fake-install.sh" <<FAKE
+if [[ " \$* " == *" --check "* ]]; then exec bash "$ROOT/install.sh" "\$@"; fi
+echo "ARGS:\$*"
+[[ -n "\${USER_PASSWORD:-}" ]] && echo "PW:\$USER_PASSWORD"
+[[ -t 0 ]] && echo "TTY:yes"
+read -r -p "answer: " a
+echo "GOT:\$a"
+exit 3
+FAKE
 PORT=$((20000 + RANDOM % 20000))
-python3 dashboard/server.py --config "$TMP/webcfg" --port "$PORT" --bind 127.0.0.1 >"$TMP/server.log" 2>&1 &
+python3 dashboard/server.py --config "$TMP/webcfg" --port "$PORT" --bind 127.0.0.1 --installer "$TMP/fake-install.sh" >"$TMP/server.log" 2>&1 &
 SERVER_PID=$!
 for _ in $(seq 50); do grep -q 'Access code' "$TMP/server.log" && break; sleep 0.1; done
 TOKEN=$(sed -n 's/.*Access code: //p' "$TMP/server.log" | head -1)
@@ -125,10 +136,23 @@ else
   code=$(curl -s -o /dev/null -w '%{http_code}' -H "X-Token: $TOKEN" -d "$wrong" "$URL/api/install")
   [[ "$code" == 400 ]] && ok "install needs the typed disk name" || bad "install needs the typed disk name (got $code)"
   confirmed=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); d['confirm_disk']=sys.argv[2].removeprefix('/dev/'); print(json.dumps(d))" "$ready" "$disk")
-  curl -fsS -H "X-Token: $TOKEN" -d "$confirmed" "$URL/api/install" >/dev/null
-  wait "$SERVER_PID"; rc=$?; SERVER_PID=
-  [[ $rc == 10 ]] && ok "Save & install exits with code 10" || bad "Save & install exits with code 10 (got $rc)"
+  badpw=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); d['passwords']={'user':'a\nb'}; print(json.dumps(d))" "$confirmed")
+  code=$(curl -s -o /dev/null -w '%{http_code}' -H "X-Token: $TOKEN" -d "$badpw" "$URL/api/install")
+  [[ "$code" == 400 ]] && ok "rejects passwords with line breaks" || bad "rejects passwords with line breaks (got $code)"
+  withpw=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); d['passwords']={'user':'s3cr3t pw'}; print(json.dumps(d))" "$confirmed")
+  code=$(curl -s -o "$TMP/r" -w '%{http_code}' -H "X-Token: $TOKEN" -d "$withpw" "$URL/api/install")
+  [[ "$code" == 200 ]] && ok "install starts the web terminal" || bad "install starts the web terminal ($code)" "$(cat "$TMP/r")"
+  code=$(curl -s -o /dev/null -w '%{http_code}' -H "X-Token: $TOKEN" -d "$withpw" "$URL/api/install")
+  [[ "$code" == 409 ]] && ok "only one install at a time" || bad "only one install at a time (got $code)"
+  term_text=$(python3 tests/term_client.py "$URL" "$TOKEN" "hello web")
+  grep -q "ARGS:--config $TMP/webcfg --yes" <<<"$term_text" && ok "installer runs with --yes" || bad "installer runs with --yes" "$term_text"
+  grep -q "TTY:yes" <<<"$term_text" && ok "installer gets a real terminal" || bad "installer gets a real terminal" "$term_text"
+  grep -q "PW:s3cr3t pw" <<<"$term_text" && ok "web password reaches the installer" || bad "web password reaches the installer" "$term_text"
+  grep -q "GOT:hello web" <<<"$term_text" && ok "web terminal input reaches the installer" || bad "web terminal input reaches the installer" "$term_text"
+  grep -q "EXIT 3" <<<"$term_text" && ok "exit code reported" || bad "exit code reported" "$term_text"
+  if grep -q "s3cr3t" "$TMP/webcfg"; then bad "password must not be written to the config"; else ok "password not written to the config"; fi
   grep -q "^USERNAME='tester'" "$TMP/webcfg" && ok "install saved disk + username" || bad "install saved disk + username"
+  kill "$SERVER_PID"; wait "$SERVER_PID" 2>/dev/null; SERVER_PID=
 fi
 
 echo "lockout"

@@ -30,8 +30,8 @@ Usage: ./install.sh [options]
   -c, --config FILE   use FILE instead of ./config
   -m, --menu          open the terminal dashboard to edit the config first
   -w, --web [PORT]    start the web dashboard (port 80, or 8080 if busy); pick
-                      every option from any browser on your network, press
-                      "Save & install" there, then only type passwords here
+                      every option from any browser on your network and watch
+                      the install in its web terminal
       --check         validate the config and print the install plan
       --dry-run       like --check, and also print the partition layout and
                       the script that runs inside the new system
@@ -67,16 +67,11 @@ BOOT_MODE=$(boot_mode)
 # ------------------------------------------------------------ dashboards ---
 if [[ "$RUN_WEB" == yes ]]; then
   command -v python3 >/dev/null || die "python3 is required for the web dashboard (use --menu instead)."
-  set +e
-  python3 "$SCRIPT_DIR/dashboard/server.py" --config "$CONFIG_FILE" --installer "$SCRIPT_DIR/install.sh" \
+  [[ $EUID -eq 0 ]] || warn "Not running as root: the dashboard works, but installing from it will fail."
+  # The dashboard starts this script again (with --yes) inside a web terminal
+  # once the options are confirmed in the browser.
+  exec python3 "$SCRIPT_DIR/dashboard/server.py" --config "$CONFIG_FILE" --installer "$SCRIPT_DIR/install.sh" \
     ${WEB_PORT:+--port "$WEB_PORT"}
-  rc=$?
-  set -e
-  [[ $rc -eq 10 ]] || exit "$rc" # 10 = "Save & install" pressed
-  load_config "$CONFIG_FILE"
-  # The disk name was already typed as confirmation in the browser, so the
-  # terminal only asks for passwords.
-  ASSUME_YES=yes
 fi
 
 if [[ "$RUN_MENU" == yes ]]; then

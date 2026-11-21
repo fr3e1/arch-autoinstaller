@@ -3,24 +3,33 @@
 
 Runs on the live ISO (python3 is included there) using only the standard
 library. Open the printed URL from any device on the same network, pick the
-install options and press "Save & install" to hand control back to
-install.sh.
+install options and press "Install". The installer then runs in a
+pseudo-terminal that is shown both in the browser (web terminal) and on the
+machine's own console, so passwords can be typed in either place.
 
-Exit codes: 0 = stopped (Ctrl+C or "Save only"), 10 = start the install.
+Exit code: the installer's exit code once it has run, otherwise 0.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
+import fcntl
 import json
 import os
+import pty
 import re
 import secrets
+import signal
 import socket
+import struct
 import subprocess
 import sys
 import tempfile
+import termios
 import threading
+import time
+import tty
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -28,8 +37,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_FILE = ROOT / "lib" / "options.conf"
 INDEX_FILE = Path(__file__).resolve().parent / "index.html"
-EXIT_INSTALL = 10
 MAX_BODY = 64 * 1024
+TERM_BUFFER = 8 * 1024 * 1024  # bytes of installer output kept for the web terminal
+PASSWORD_ENV = {"user": "USER_PASSWORD", "root": "ROOT_PASSWORD", "luks": "LUKS_PASSWORD"}
 # Short, easy to type on a phone: no 0/o, 1/l/i look-alikes.
 TOKEN_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
 TOKEN_LENGTH = 6
@@ -230,13 +240,152 @@ def install_errors(values: dict) -> list[str]:
     return errors
 
 
+class InstallSession:
+    """The installer running in a pseudo-terminal.
+
+    Output is kept in a ring buffer for the web terminal (clients poll with an
+    offset) and mirrored to this process's stdout. Input comes from the web
+    terminal and, when stdin is a TTY, from the machine's own keyboard.
+    """
+
+    def __init__(self, cmd: list[str], env: dict[str, str]):
+        self.buf = bytearray()
+        self.base = 0  # stream offset of buf[0]
+        self.cond = threading.Condition()
+        self.exit_code: int | None = None
+        self.started = time.time()
+        self.console_attrs = None
+        pid, fd = pty.fork()
+        if pid == 0:  # child
+            try:
+                os.execvpe(cmd[0], cmd, env)
+            finally:
+                os._exit(127)
+        self.pid, self.fd = pid, fd
+        self.resize(120, 32)
+        if sys.stdin.isatty():
+            try:
+                self.console_attrs = termios.tcgetattr(sys.stdin.fileno())
+                tty.setraw(sys.stdin.fileno())
+                threading.Thread(target=self._console_input, daemon=True).start()
+            except termios.error:
+                self.console_attrs = None
+        threading.Thread(target=self._pump, daemon=True).start()
+
+    def _pump(self) -> None:
+        out = sys.stdout.buffer
+        while True:
+            try:
+                data = os.read(self.fd, 65536)
+            except OSError:
+                data = b""
+            if not data:
+                break
+            try:
+                out.write(data)
+                out.flush()
+            except OSError:
+                pass
+            with self.cond:
+                self.buf += data
+                if len(self.buf) > TERM_BUFFER:
+                    drop = len(self.buf) - TERM_BUFFER
+                    del self.buf[:drop]
+                    self.base += drop
+                self.cond.notify_all()
+        _, status = os.waitpid(self.pid, 0)
+        code = os.waitstatus_to_exitcode(status)
+        self.restore_console()
+        msg = (f"\r\n\x1b[1;32m== Installer finished (exit code {code}) ==\x1b[0m\r\n" if code == 0 else
+               f"\r\n\x1b[1;31m== Installer stopped with exit code {code} ==\x1b[0m\r\n")
+        print(msg.replace("\x1b[1;32m", "").replace("\x1b[1;31m", "").replace("\x1b[0m", "").strip(), flush=True)
+        print("  The dashboard keeps running so you can read the output. Ctrl+C stops it.", flush=True)
+        with self.cond:
+            self.buf += msg.encode()
+            self.exit_code = code
+            self.cond.notify_all()
+        try:
+            os.close(self.fd)
+        except OSError:
+            pass
+
+    def _console_input(self) -> None:
+        while self.exit_code is None:
+            try:
+                data = os.read(sys.stdin.fileno(), 1024)
+            except OSError:
+                return
+            if not data:
+                return
+            self.write(data)
+
+    def restore_console(self) -> None:
+        if self.console_attrs is not None:
+            try:
+                termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self.console_attrs)
+            except termios.error:
+                pass
+            self.console_attrs = None
+
+    @property
+    def done(self) -> bool:
+        return self.exit_code is not None
+
+    def read(self, since: int, wait: float) -> dict:
+        with self.cond:
+            end = self.base + len(self.buf)
+            if since >= end and not self.done and wait > 0:
+                self.cond.wait(wait)
+                end = self.base + len(self.buf)
+            since = max(since, self.base)
+            data = bytes(self.buf[since - self.base:])
+            return {"offset": end, "data": base64.b64encode(data).decode(), "done": self.done,
+                    "exit_code": self.exit_code}
+
+    def write(self, data: bytes) -> None:
+        if self.done:
+            return
+        try:
+            os.write(self.fd, data)
+        except OSError:
+            pass
+
+    def resize(self, cols: int, rows: int) -> None:
+        if self.done:
+            return
+        cols, rows = max(20, min(cols, 400)), max(5, min(rows, 200))
+        try:
+            fcntl.ioctl(self.fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+        except OSError:
+            pass
+
+    def stop(self) -> None:
+        if not self.done:
+            try:
+                os.kill(self.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        self.restore_console()
+
+
+def password_errors(passwords: dict) -> list[str]:
+    errors = []
+    for kind, value in passwords.items():
+        if kind not in PASSWORD_ENV:
+            errors.append(f"unknown password field {kind}")
+        elif not isinstance(value, str) or not value or "\n" in value or "\0" in value:
+            errors.append(f"the {kind} password is empty or contains a line break")
+    return errors
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "arch-autoinstaller"
     # set in main()
     token: str = ""
     config_path: Path
     installer: Path
-    exit_code = 0
+    session: InstallSession | None = None
+    session_lock = threading.Lock()
     httpd: ThreadingHTTPServer
     failures: dict[str, int] = {}
     lock = threading.Lock()
@@ -316,6 +465,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(read_config(self.config_path))
         if route == "/api/info":
             return self._json(system_info())
+        if route == "/api/status":
+            s = Handler.session
+            return self._json({"installing": bool(s and not s.done), "ran": bool(s),
+                               "exit_code": s.exit_code if s else None})
+        if route == "/api/term":
+            from urllib.parse import parse_qs, urlparse
+            q = parse_qs(urlparse(self.path).query)
+            s = Handler.session
+            if not s:
+                return self._json({"error": "the installer is not running"}, HTTPStatus.CONFLICT)
+            since = int((q.get("since") or ["0"])[0] or 0)
+            wait = 20.0 if (q.get("wait") or ["0"])[0] == "1" else 0.0
+            return self._json(s.read(since, wait))
         self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
 
     def do_POST(self):
@@ -326,6 +488,27 @@ class Handler(BaseHTTPRequestHandler):
             body = self._body()
         except ValueError as e:
             return self._json({"ok": False, "errors": [str(e)]}, HTTPStatus.BAD_REQUEST)
+
+        # Web terminal input / resize
+        if route in ("/api/term/input", "/api/term/resize"):
+            s = Handler.session
+            if not s or s.done:
+                return self._json({"ok": False, "errors": ["the installer is not running"]}, HTTPStatus.CONFLICT)
+            if route == "/api/term/input":
+                data = body.get("data", "")
+                if not isinstance(data, str) or len(data) > 4096:
+                    return self._json({"ok": False}, HTTPStatus.BAD_REQUEST)
+                s.write(data.encode())
+            else:
+                try:
+                    s.resize(int(body.get("cols", 80)), int(body.get("rows", 24)))
+                except (TypeError, ValueError):
+                    return self._json({"ok": False}, HTTPStatus.BAD_REQUEST)
+            return self._json({"ok": True})
+
+        if Handler.session and not Handler.session.done and route in ("/api/save", "/api/install"):
+            return self._json({"ok": False, "errors": ["The installer is already running."]}, HTTPStatus.CONFLICT)
+
         values = {k: str(v) for k, v in (body.get("config") or {}).items()}
         errors = validate(values)
         if errors:
@@ -342,8 +525,9 @@ class Handler(BaseHTTPRequestHandler):
                 )
             return self._json({"ok": proc.returncode == 0, "output": proc.stdout + proc.stderr})
 
+        passwords = {k: v for k, v in (body.get("passwords") or {}).items() if v not in (None, "")}
         if route == "/api/install":
-            errors = install_errors(values)
+            errors = install_errors(values) + password_errors(passwords)
             if body.get("confirm_disk", "").strip() not in (values.get("DISK"), values.get("DISK", "").removeprefix("/dev/")):
                 errors.append("Type the disk name to confirm that it will be erased.")
             if errors:
@@ -352,9 +536,17 @@ class Handler(BaseHTTPRequestHandler):
         if route in ("/api/save", "/api/install"):
             write_config(self.config_path, values)
             if route == "/api/install":
-                Handler.exit_code = EXIT_INSTALL
-                print("\n  Options confirmed in the browser. Starting the install...", flush=True)
-                threading.Thread(target=self.httpd.shutdown, daemon=True).start()
+                with Handler.session_lock:
+                    if Handler.session and not Handler.session.done:
+                        return self._json({"ok": False, "errors": ["The installer is already running."]}, HTTPStatus.CONFLICT)
+                    env = {**os.environ, "TERM": "xterm-256color"}
+                    for k in PASSWORD_ENV.values():
+                        env.pop(k, None)
+                    for kind, value in passwords.items():
+                        env[PASSWORD_ENV[kind]] = value  # passed to the child only, never written to disk
+                    print("\n  Options confirmed in the browser. Starting the installer...\n", flush=True)
+                    Handler.session = InstallSession(
+                        ["bash", str(self.installer), "--config", str(self.config_path), "--yes"], env)
             else:
                 print(f"  Config saved to {self.config_path}", flush=True)
             return self._json({"ok": True})
@@ -402,15 +594,19 @@ def main() -> int:
         print(f"    {bold}http://{addr}{host_port}{path}{reset}")
     if Handler.token:
         print(f"\n  Access code: {bold}{Handler.token}{reset}")
-    print("\n  Pick your options and press \"Save & install\" there.")
-    print("  You only come back here to type passwords. Ctrl+C stops the dashboard.\n", flush=True)
+    print("\n  Pick your options there and press \"Install\". The installer then runs in")
+    print("  the browser's terminal and here at the same time; type passwords in either.")
+    print("  Ctrl+C stops the dashboard.\n", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         print()
     finally:
+        if Handler.session:
+            Handler.session.stop()
         httpd.server_close()
-    return Handler.exit_code
+    s = Handler.session
+    return s.exit_code if s and s.exit_code is not None else 0
 
 
 if __name__ == "__main__":
