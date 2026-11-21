@@ -140,6 +140,7 @@ dialog h3 { margin-top: 0; color: var(--danger); }
           <button class="btn primary" id="saveBtn">Save config</button>
         </div>
         <button class="btn go" id="installBtn">Save &amp; install…</button>
+        <div class="muted" id="installHint" style="font-size:13px"></div>
         <div class="row">
           <button class="btn" id="downloadBtn">Download config</button>
           <button class="btn" id="copyBtn">Copy</button>
@@ -156,9 +157,12 @@ dialog h3 { margin-top: 0; color: var(--danger); }
 
 <dialog id="confirm">
   <h3>Erase the disk and install?</h3>
-  <p>Everything on <b id="confirmDisk"></b> will be erased. The installer continues in the terminal
-    where you ran <code>./install.sh --web</code>, and asks for passwords there.</p>
-  <p class="muted" id="confirmNoDisk" hidden>No disk is selected, so the installer will ask which disk to use.</p>
+  <p>Everything on <b id="confirmDisk"></b> will be <b>permanently erased</b>.</p>
+  <p class="muted">The install starts right away. The terminal on the target machine then asks only for
+    passwords<span id="confirmLuks" hidden> and the disk encryption passphrase</span>.</p>
+  <label for="confirmInput" style="display:block;margin-bottom:6px">Type <b id="confirmDisk2"></b> to confirm:</label>
+  <input type="text" id="confirmInput" autocomplete="off" autocapitalize="off" spellcheck="false" style="margin-bottom:12px">
+  <ul class="errors" id="confirmErrors"></ul>
   <div class="row">
     <button class="btn" id="cancelInstall">Cancel</button>
     <button class="btn go" id="doInstall">Save &amp; install</button>
@@ -243,7 +247,7 @@ const HELP = {
   TIMEZONE: "Region/City, for example Europe/Berlin or America/New_York.",
   LOCALE: "For example en_US.UTF-8, en_GB.UTF-8, de_DE.UTF-8.",
   KEYMAP: "Console keyboard layout, for example us, uk, de-latin1, fr.",
-  USERNAME: "Lowercase letters, digits, - and _. Leave empty to be asked. Passwords are always asked in the terminal.",
+  USERNAME: "Lowercase letters, digits, - and _. Passwords are typed in the terminal when the install starts.",
   ROOT_PASSWORD_MODE: "lock disables root login (use sudo). same reuses the user password. prompt asks for a separate one.",
   DISPLAY_MANAGER: "auto picks the best login screen for the chosen desktop.",
   GPU_DRIVER: "auto detects the graphics card (and VirtualBox, VMware, QEMU and Hyper-V guests).",
@@ -269,7 +273,9 @@ const SECTION_ICONS = { Disk: "💽", Boot: "⚡", System: "🖥️", Users: "�
   Network: "🌐", Packages: "📦", Finish: "🏁" };
 
 // ------------------------------------------------------------------ state ---
-const token = new URLSearchParams(location.search).get("token") || "";
+// Access code: http://host/<code> or http://host/?token=<code>
+const token = (new URLSearchParams(location.search).get("token")
+  || location.pathname.replace(/^\/+|\/+$/g, "").replace(/^index\.html$/, "")).toLowerCase();
 let schema = EMBEDDED_SCHEMA;
 let config = { ...DEFAULTS };
 let info = null;
@@ -324,8 +330,10 @@ function desktopControl(opt) {
 function diskControl() {
   const disks = info?.disks || [];
   const wrap = el("div", { class: "disks" });
-  wrap.append(el("button", { type: "button", class: "disk", "aria-pressed": String(!config.DISK),
-    onclick: () => set("DISK", "") }, el("b", {}, "Ask during install"), el("small", {}, "Choose the disk in the terminal")));
+  if (!online) {
+    wrap.append(el("button", { type: "button", class: "disk", "aria-pressed": String(!config.DISK),
+      onclick: () => set("DISK", "") }, el("b", {}, "Ask during install"), el("small", {}, "Choose the disk in the terminal")));
+  }
   for (const d of disks) {
     const meta = [fmtSize(d.size), d.model, d.tran?.toUpperCase(), d.removable && "removable", d.live_iso && "live ISO — cannot install here"]
       .filter(Boolean).join(" · ");
@@ -434,6 +442,14 @@ function configText() {
   return lines.join("\n") + "\n";
 }
 
+// Everything the terminal would otherwise ask for, except passwords.
+function installMissing() {
+  const m = [];
+  if (!config.DISK) m.push("a disk");
+  if (!config.USERNAME) m.push("a username");
+  return m;
+}
+
 function errorsList() {
   return schema.filter((o) => !valid(o, config[o.key] ?? "")).map((o) => `${o.label}: invalid value “${config[o.key]}”`);
 }
@@ -451,6 +467,9 @@ function renderSide() {
   const errs = errorsList();
   $("errors").replaceChildren(...errs.map((e) => el("li", {}, e)));
   for (const id of ["saveBtn", "installBtn", "checkBtn", "downloadBtn", "copyBtn"]) $(id).disabled = errs.length > 0;
+  const missing = installMissing();
+  $("installHint").textContent = online && !errs.length && missing.length ? "To install, still needed: " + missing.join(", ") + "." : "";
+  $("installBtn").disabled = errs.length > 0 || missing.length > 0;
   if (!online) $("installBtn").hidden = true, $("serverActions").hidden = true;
   if ($("outTitle").dataset.mode !== "plan") $("output").textContent = configText();
 }
@@ -476,20 +495,35 @@ async function save(path) {
 }
 $("saveBtn").onclick = async () => { try { if (await save("/api/save")) toast("Config saved on the installer"); } catch (e) { toast("Save failed: " + e.message); } };
 $("installBtn").onclick = () => {
-  $("confirmDisk").textContent = config.DISK || "the disk you pick";
-  $("confirmNoDisk").hidden = !!config.DISK;
+  $("confirmDisk").textContent = $("confirmDisk2").textContent = config.DISK;
+  $("confirmLuks").hidden = config.ENCRYPT !== "yes";
+  $("confirmInput").value = "";
+  $("confirmErrors").replaceChildren();
+  $("doInstall").disabled = true;
   $("confirm").showModal();
+  $("confirmInput").focus();
 };
+const confirmMatches = () => { const v = $("confirmInput").value.trim(); return v === config.DISK || "/dev/" + v === config.DISK; };
+$("confirmInput").oninput = () => { $("doInstall").disabled = !confirmMatches(); };
+$("confirmInput").onkeydown = (e) => { if (e.key === "Enter" && confirmMatches()) $("doInstall").click(); };
 $("cancelInstall").onclick = () => $("confirm").close();
 $("doInstall").onclick = async () => {
-  $("confirm").close();
+  $("doInstall").disabled = true;
   try {
-    if (await save("/api/install")) {
-      document.body.innerHTML = `<main style="display:block;max-width:640px"><section class="card" style="padding:28px">
-        <h2>Handed over to the installer</h2><p>The config is saved. Go back to the terminal on the target machine:
-        it will ask for passwords and a final confirmation, then install.</p><p class="muted">You can close this tab.</p></section></main>`;
+    const r = await api("/api/install", { config, confirm_disk: $("confirmInput").value.trim() });
+    if (!r.ok) {
+      $("confirmErrors").replaceChildren(...(r.errors || ["Unknown error"]).map((e) => el("li", {}, e)));
+      $("doInstall").disabled = !confirmMatches();
+      return;
     }
-  } catch (e) { toast("Failed: " + e.message); }
+    $("confirm").close();
+    document.body.innerHTML = `<main style="display:block;max-width:640px"><section class="card" style="padding:28px">
+      <h2>Install started</h2><p>Your options are saved. On the target machine, type the passwords when asked
+      and the install continues on its own.</p><p class="muted">You can close this tab.</p></section></main>`;
+  } catch (e) {
+    $("confirmErrors").replaceChildren(el("li", {}, "Failed: " + e.message));
+    $("doInstall").disabled = false;
+  }
 };
 $("downloadBtn").onclick = () => {
   const a = el("a", { href: URL.createObjectURL(new Blob([configText()], { type: "text/plain" })), download: "config" });

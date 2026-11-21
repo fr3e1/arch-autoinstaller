@@ -30,6 +30,10 @@ SCHEMA_FILE = ROOT / "lib" / "options.conf"
 INDEX_FILE = Path(__file__).resolve().parent / "index.html"
 EXIT_INSTALL = 10
 MAX_BODY = 64 * 1024
+# Short, easy to type on a phone: no 0/o, 1/l/i look-alikes.
+TOKEN_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
+TOKEN_LENGTH = 6
+MAX_FAILED_ATTEMPTS = 20  # per client IP, then it is locked out
 
 
 def load_schema() -> list[dict]:
@@ -186,6 +190,46 @@ def system_info() -> dict:
     }
 
 
+CODE_PAGE = b"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Arch Autoinstaller</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0f1218;color:#e6e9ef;
+font:16px system-ui,sans-serif}form{display:grid;gap:12px;padding:28px;border:1px solid #2a3142;border-radius:12px;
+background:#171b23;width:min(340px,calc(100% - 32px))}input{font:24px ui-monospace,monospace;letter-spacing:.3em;
+text-align:center;padding:10px;border-radius:8px;border:1px solid #2a3142;background:#1e2330;color:inherit;text-transform:lowercase}
+button{padding:12px;border:0;border-radius:8px;background:#1793d1;color:#fff;font:inherit;font-weight:600}
+p{margin:0;color:#8b93a7;font-size:14px}</style></head><body>
+<form onsubmit="location.href='/'+encodeURIComponent(this.c.value.trim().toLowerCase());return false">
+<b>Arch Autoinstaller</b><p>Enter the access code shown in the installer's terminal.</p>
+<input name="c" maxlength="16" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus required>
+<button>Open dashboard</button></form></body></html>"""
+
+
+def new_token() -> str:
+    return "".join(secrets.choice(TOKEN_ALPHABET) for _ in range(TOKEN_LENGTH))
+
+
+def install_errors(values: dict) -> list[str]:
+    """Extra checks for "Save & install": nothing may be left to ask in the terminal."""
+    errors = []
+    disk = values.get("DISK", "")
+    if not disk:
+        errors.append("Pick the disk to install to.")
+    else:
+        info = system_info()
+        match = next((d for d in info["disks"] if d["path"] == disk), None)
+        if match is None:
+            errors.append(f"{disk} is not a disk on this machine.")
+        elif match["live_iso"]:
+            errors.append(f"{disk} is the drive the live ISO booted from.")
+        elif match["size"] and match["size"] < 8 * 1024**3:
+            errors.append(f"{disk} is smaller than 8 GiB.")
+    if not values.get("USERNAME"):
+        errors.append("Enter a username.")
+    elif values["USERNAME"] == "root":
+        errors.append("The username cannot be root.")
+    return errors
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "arch-autoinstaller"
     # set in main()
@@ -194,19 +238,37 @@ class Handler(BaseHTTPRequestHandler):
     installer: Path
     exit_code = 0
     httpd: ThreadingHTTPServer
+    failures: dict[str, int] = {}
+    lock = threading.Lock()
 
     def log_message(self, fmt, *args):  # keep the console quiet
         pass
 
     # -- helpers --------------------------------------------------------
-    def _authorized(self) -> bool:
-        if not self.token:
-            return True
+    def _supplied_token(self) -> str:
         supplied = self.headers.get("X-Token", "")
         if not supplied and "?" in self.path:
             from urllib.parse import parse_qs, urlparse
             supplied = parse_qs(urlparse(self.path).query).get("token", [""])[0]
-        return secrets.compare_digest(supplied, self.token)
+        if not supplied:  # http://host/<token>
+            supplied = self.path.split("?", 1)[0].strip("/")
+        return supplied.strip().lower()
+
+    def _locked_out(self) -> bool:
+        with self.lock:
+            return self.failures.get(self.client_address[0], 0) >= MAX_FAILED_ATTEMPTS
+
+    def _authorized(self) -> bool:
+        if not self.token:
+            return True
+        if self._locked_out():
+            return False
+        ok = secrets.compare_digest(self._supplied_token().encode(), self.token.encode())
+        if not ok:
+            with self.lock:
+                ip = self.client_address[0]
+                self.failures[ip] = self.failures.get(ip, 0) + 1
+        return ok
 
     def _send(self, status: int, body: bytes, ctype: str = "application/json") -> None:
         self.send_response(status)
@@ -232,9 +294,19 @@ class Handler(BaseHTTPRequestHandler):
     # -- routes ---------------------------------------------------------
     def do_GET(self):
         route = self.path.split("?", 1)[0]
-        if route in ("/", "/index.html"):
+        if route == "/favicon.ico":
+            return self._send(HTTPStatus.NO_CONTENT, b"", "text/plain")
+        if not route.startswith("/api/"):
+            if route != "/" and not re.fullmatch(r"/[A-Za-z0-9]{4,16}/?", route):
+                return self._send(HTTPStatus.NOT_FOUND, b"Not found", "text/plain")
+            # The page itself: http://host/<code> (or /?token=<code>)
+            if self.token and not self._supplied_token() and not self._locked_out():
+                return self._send(200, CODE_PAGE, "text/html; charset=utf-8")
             if not self._authorized():
-                return self._send(HTTPStatus.FORBIDDEN, b"Missing or wrong token. Use the full URL printed by install.sh.", "text/plain")
+                msg = (b"Too many wrong codes from this device. Restart ./install.sh --web."
+                       if self._locked_out() else
+                       b"Wrong or missing code. Open the exact link shown in the installer's terminal.")
+                return self._send(HTTPStatus.FORBIDDEN, msg, "text/plain; charset=utf-8")
             return self._send(200, INDEX_FILE.read_bytes(), "text/html; charset=utf-8")
         if not self._authorized():
             return self._json({"error": "forbidden"}, HTTPStatus.FORBIDDEN)
@@ -270,11 +342,18 @@ class Handler(BaseHTTPRequestHandler):
                 )
             return self._json({"ok": proc.returncode == 0, "output": proc.stdout + proc.stderr})
 
+        if route == "/api/install":
+            errors = install_errors(values)
+            if body.get("confirm_disk", "").strip() not in (values.get("DISK"), values.get("DISK", "").removeprefix("/dev/")):
+                errors.append("Type the disk name to confirm that it will be erased.")
+            if errors:
+                return self._json({"ok": False, "errors": errors}, HTTPStatus.BAD_REQUEST)
+
         if route in ("/api/save", "/api/install"):
             write_config(self.config_path, values)
             if route == "/api/install":
                 Handler.exit_code = EXIT_INSTALL
-                print("\n  Config saved. Continue the install in this terminal.", flush=True)
+                print("\n  Options confirmed in the browser. Starting the install...", flush=True)
                 threading.Thread(target=self.httpd.shutdown, daemon=True).start()
             else:
                 print(f"  Config saved to {self.config_path}", flush=True)
@@ -291,7 +370,7 @@ def local_addresses() -> list[str]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", default=str(ROOT / "config"))
-    ap.add_argument("--port", type=int, default=8080)
+    ap.add_argument("--port", type=int, default=0, help="default: 80 when root, else 8080")
     ap.add_argument("--bind", default="0.0.0.0")
     ap.add_argument("--installer", default=str(ROOT / "install.sh"))
     ap.add_argument("--no-token", action="store_true", help="disable the access token (local testing only)")
@@ -299,19 +378,32 @@ def main() -> int:
 
     Handler.config_path = Path(args.config).resolve()
     Handler.installer = Path(args.installer).resolve()
-    Handler.token = "" if args.no_token else secrets.token_urlsafe(9)
-    try:
-        httpd = ThreadingHTTPServer((args.bind, args.port), Handler)
-    except OSError as e:
-        print(f"Could not listen on port {args.port}: {e}", file=sys.stderr)
+    Handler.token = "" if args.no_token else new_token()
+    ports = [args.port] if args.port else ([80, 8080] if os.geteuid() == 0 else [8080])
+    httpd = None
+    for port in ports:
+        try:
+            httpd = ThreadingHTTPServer((args.bind, port), Handler)
+            break
+        except OSError as e:
+            last_error = e
+    if httpd is None:
+        print(f"Could not start the web server on port {'/'.join(map(str, ports))}: {last_error}", file=sys.stderr)
         return 1
+    port = httpd.server_address[1]
     Handler.httpd = httpd
 
-    q = f"/?token={Handler.token}" if Handler.token else "/"
-    print("\n  arch-autoinstaller web dashboard is running. Open one of:\n")
-    for addr in local_addresses():
-        print(f"    http://{addr}:{args.port}{q}")
-    print("\n  Press \"Save & install\" in the browser to continue, or Ctrl+C to stop.\n", flush=True)
+    host_port = "" if port == 80 else f":{port}"
+    path = f"/{Handler.token}" if Handler.token else "/"
+    bold, reset = ("\033[1m", "\033[0m") if sys.stdout.isatty() else ("", "")
+    print("\n  arch-autoinstaller web dashboard is running.")
+    print("  On your phone or another computer on this network, open:\n")
+    for addr in (local_addresses() if args.bind in ("0.0.0.0", "") else [args.bind]):
+        print(f"    {bold}http://{addr}{host_port}{path}{reset}")
+    if Handler.token:
+        print(f"\n  Access code: {bold}{Handler.token}{reset}")
+    print("\n  Pick your options and press \"Save & install\" there.")
+    print("  You only come back here to type passwords. Ctrl+C stops the dashboard.\n", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

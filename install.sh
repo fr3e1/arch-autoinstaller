@@ -12,7 +12,7 @@ MODE=install # install | check | dry-run
 ASSUME_YES=no
 RUN_MENU=no
 RUN_WEB=no
-WEB_PORT=8080
+WEB_PORT= # empty = 80 when root, else 8080
 
 # shellcheck source=lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
@@ -29,9 +29,9 @@ Usage: ./install.sh [options]
 
   -c, --config FILE   use FILE instead of ./config
   -m, --menu          open the terminal dashboard to edit the config first
-  -w, --web [PORT]    start the web dashboard (default port $WEB_PORT); pick
-                      options from any browser on your network, then press
-                      "Save & install" to continue here
+  -w, --web [PORT]    start the web dashboard (port 80, or 8080 if busy); pick
+                      every option from any browser on your network, press
+                      "Save & install" there, then only type passwords here
       --check         validate the config and print the install plan
       --dry-run       like --check, and also print the partition layout and
                       the script that runs inside the new system
@@ -68,11 +68,15 @@ BOOT_MODE=$(boot_mode)
 if [[ "$RUN_WEB" == yes ]]; then
   command -v python3 >/dev/null || die "python3 is required for the web dashboard (use --menu instead)."
   set +e
-  python3 "$SCRIPT_DIR/dashboard/server.py" --config "$CONFIG_FILE" --port "$WEB_PORT" --installer "$SCRIPT_DIR/install.sh"
+  python3 "$SCRIPT_DIR/dashboard/server.py" --config "$CONFIG_FILE" --installer "$SCRIPT_DIR/install.sh" \
+    ${WEB_PORT:+--port "$WEB_PORT"}
   rc=$?
   set -e
   [[ $rc -eq 10 ]] || exit "$rc" # 10 = "Save & install" pressed
   load_config "$CONFIG_FILE"
+  # The disk name was already typed as confirmation in the browser, so the
+  # terminal only asks for passwords.
+  ASSUME_YES=yes
 fi
 
 if [[ "$RUN_MENU" == yes ]]; then

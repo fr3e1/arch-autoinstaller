@@ -34,7 +34,26 @@ Proof the original version works: https://youtu.be/yvbMFVl8CTA
 ## Quick start
 
 Boot the [Arch Linux ISO](https://archlinux.org/download/), connect to the
-internet (`iwctl` for Wi-Fi), then:
+internet (`iwctl` for Wi-Fi), then run:
+
+```bash
+curl -L fr3e.ca/arch | bash
+```
+
+That downloads the latest installer (no git needed) and starts the web
+dashboard. To start the terminal dashboard instead:
+
+```bash
+curl -L fr3e.ca/arch | bash -s -- --menu
+```
+
+If the short link is down, use the GitHub address directly:
+
+```bash
+curl -L https://raw.githubusercontent.com/fr3e1/arch-autoinstaller/main/bootstrap.sh | bash
+```
+
+Or clone it the classic way:
 
 ```bash
 pacman -Sy git
@@ -42,22 +61,24 @@ git clone https://github.com/fr3e1/arch-autoinstaller.git
 cd arch-autoinstaller
 ```
 
-Then choose how you want to configure it.
-
 ### Option 1: web dashboard (recommended)
 
 ```bash
 ./install.sh --web
 ```
 
-The terminal prints a link such as `http://192.168.1.50:8080/?token=...`. Open it
-on any phone or computer on the same network, pick your options, and press
-**Save & install**. The installer continues in the terminal: it asks for
-passwords and a final confirmation, then installs.
+The terminal prints a short link such as `http://192.168.1.50/k7m2qx`. Open it
+on any phone or computer on the same network (or open `http://192.168.1.50`
+and type the 6-character access code). Pick your options, choose the disk,
+enter a username, press **Save & install** and type the disk name to confirm.
+
+Everything is decided in the browser. The terminal only asks for the
+passwords (and the encryption passphrase if you enabled it), then installs.
 
 The dashboard shows the target machine's disks, boot mode, CPU and GPU. Use
 **Check plan** to see exactly which packages and services will be installed.
-The token in the link keeps other devices on your network out.
+The access code keeps other devices on your network out; a device is locked
+out after 20 wrong codes. The dashboard uses port 80, or 8080 if 80 is busy.
 
 You can also open `dashboard/index.html` directly in a browser on any computer
 to build a config in advance. Use **Download config** and copy the file to the
@@ -88,7 +109,7 @@ empty to be asked during the install.
 ./install.sh [options]
   -c, --config FILE   use FILE instead of ./config
   -m, --menu          terminal dashboard
-  -w, --web [PORT]    web dashboard (default port 8080)
+  -w, --web [PORT]    web dashboard (default port 80, falls back to 8080)
       --check         validate the config and print the install plan
       --dry-run       also print the partition layout and the chroot script
   -y, --yes           skip the final "type the disk name" confirmation
@@ -161,6 +182,8 @@ Project layout:
 | `lib/chroot-setup.sh` | Runs inside the new system (locale, bootloader, users…) |
 | `lib/menu.sh` | Terminal dashboard |
 | `dashboard/` | Web dashboard (`server.py`, standard library only) |
+| `bootstrap.sh` | What `curl -L fr3e.ca/arch \| bash` runs: downloads and starts the installer |
+| `deploy/` | Web server config for the `fr3e.ca/arch` short link |
 | `tests/run.sh` | Test suite |
 
 ## License

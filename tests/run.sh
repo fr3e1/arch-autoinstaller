@@ -12,7 +12,7 @@ check() { local name=$1; shift; local out; if out=$("$@" 2>&1); then ok "$name";
 check_fails() { local name=$1; shift; local out; if out=$("$@" 2>&1); then bad "$name (expected failure)" "$out"; else ok "$name"; fi; }
 
 echo "syntax"
-for f in install.sh lib/*.sh tests/run.sh; do check "bash -n $f" bash -n "$f"; done
+for f in install.sh bootstrap.sh lib/*.sh tests/run.sh; do check "bash -n $f" bash -n "$f"; done
 check "python compile server.py" python3 -c "import ast,sys; ast.parse(open('dashboard/server.py').read())"
 if command -v shellcheck >/dev/null; then
   check "shellcheck" shellcheck -x -S warning install.sh lib/*.sh
@@ -89,12 +89,19 @@ cp config "$TMP/webcfg"
 PORT=$((20000 + RANDOM % 20000))
 python3 dashboard/server.py --config "$TMP/webcfg" --port "$PORT" --bind 127.0.0.1 >"$TMP/server.log" 2>&1 &
 SERVER_PID=$!
-for _ in $(seq 50); do grep -q token= "$TMP/server.log" && break; sleep 0.1; done
-TOKEN=$(grep -o 'token=[^ ]*' "$TMP/server.log" | head -1 | cut -d= -f2)
+for _ in $(seq 50); do grep -q 'Access code' "$TMP/server.log" && break; sleep 0.1; done
+TOKEN=$(sed -n 's/.*Access code: //p' "$TMP/server.log" | head -1)
 URL="http://127.0.0.1:$PORT"
+[[ "$TOKEN" =~ ^[a-z2-9]{6}$ ]] && ok "access code is 6 easy characters ($TOKEN)" || bad "access code is 6 easy characters (got '$TOKEN')"
+grep -q "http://127.0.0.1:$PORT/$TOKEN" "$TMP/server.log" && ok "prints short link" || bad "prints short link" "$(cat "$TMP/server.log")"
 code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/config")
 [[ "$code" == 403 ]] && ok "rejects requests without token" || bad "rejects requests without token (got $code)"
-check "serves index with token" bash -c "curl -fsS '$URL/?token=$TOKEN' | grep -q 'Arch Autoinstaller'"
+check "serves index at /<code>" bash -c "curl -fsS '$URL/$TOKEN' | grep -q 'EMBEDDED_SCHEMA'"
+check "code is case-insensitive" bash -c "curl -fsS '$URL/${TOKEN^^}' | grep -q 'EMBEDDED_SCHEMA'"
+check "serves index with ?token=" bash -c "curl -fsS '$URL/?token=$TOKEN' | grep -q 'EMBEDDED_SCHEMA'"
+check "bare / shows code entry page" bash -c "curl -fsS '$URL/' | grep -q 'Enter the access code'"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/apple-touch-icon.png")
+[[ "$code" == 404 ]] && ok "stray browser requests are 404, not failed logins" || bad "stray requests (got $code)"
 check "GET /api/info" bash -c "curl -fsS -H 'X-Token: $TOKEN' '$URL/api/info' | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d[\"boot_mode\"] in (\"UEFI\",\"BIOS\")'"
 cfg_json=$(curl -fsS -H "X-Token: $TOKEN" "$URL/api/config")
 check "GET /api/config returns all options" python3 -c "import json,sys; d=json.loads(sys.argv[1]); assert len(d)==$(grep -cv '^#' lib/options.conf), len(d)" "$cfg_json"
@@ -105,9 +112,34 @@ evil=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); d['HOSTNAME']='x;
 code=$(curl -s -o /dev/null -w '%{http_code}' -H "X-Token: $TOKEN" -d "$evil" "$URL/api/save")
 [[ "$code" == 400 ]] && ok "rejects invalid values" || bad "rejects invalid values (got $code)"
 check "saved config is valid for install.sh" bash install.sh --check -c "$TMP/webcfg"
-curl -fsS -H "X-Token: $TOKEN" -d "$body" "$URL/api/install" >/dev/null
-wait "$SERVER_PID"; rc=$?; SERVER_PID=
-[[ $rc == 10 ]] && ok "Save & install exits with code 10" || bad "Save & install exits with code 10 (got $rc)"
+code=$(curl -s -o "$TMP/r" -w '%{http_code}' -H "X-Token: $TOKEN" -d "$body" "$URL/api/install")
+[[ "$code" == 400 ]] && grep -q "disk" "$TMP/r" && grep -q "username" "$TMP/r" \
+  && ok "install refuses without disk + username" || bad "install refuses without disk + username ($code)" "$(cat "$TMP/r")"
+disk=$(curl -fsS -H "X-Token: $TOKEN" "$URL/api/info" | python3 -c 'import json,sys; d=[x["path"] for x in json.load(sys.stdin)["disks"] if not x["live_iso"] and x["size"]>=8<<30]; print(d[0] if d else "")')
+if [[ -z "$disk" ]]; then
+  echo "  skip install hand-off tests (no disk >= 8 GiB on this machine)"
+  kill "$SERVER_PID"; wait "$SERVER_PID" 2>/dev/null; SERVER_PID=
+else
+  ready=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); d['config'].update(DISK=sys.argv[2], USERNAME='tester'); print(json.dumps(d))" "$body" "$disk")
+  wrong=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); d['confirm_disk']='nope'; print(json.dumps(d))" "$ready")
+  code=$(curl -s -o /dev/null -w '%{http_code}' -H "X-Token: $TOKEN" -d "$wrong" "$URL/api/install")
+  [[ "$code" == 400 ]] && ok "install needs the typed disk name" || bad "install needs the typed disk name (got $code)"
+  confirmed=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); d['confirm_disk']=sys.argv[2].removeprefix('/dev/'); print(json.dumps(d))" "$ready" "$disk")
+  curl -fsS -H "X-Token: $TOKEN" -d "$confirmed" "$URL/api/install" >/dev/null
+  wait "$SERVER_PID"; rc=$?; SERVER_PID=
+  [[ $rc == 10 ]] && ok "Save & install exits with code 10" || bad "Save & install exits with code 10 (got $rc)"
+  grep -q "^USERNAME='tester'" "$TMP/webcfg" && ok "install saved disk + username" || bad "install saved disk + username"
+fi
+
+echo "lockout"
+python3 dashboard/server.py --config "$TMP/webcfg" --port "$((PORT + 1))" --bind 127.0.0.1 >"$TMP/server2.log" 2>&1 &
+SERVER_PID=$!
+for _ in $(seq 50); do grep -q 'Access code' "$TMP/server2.log" && break; sleep 0.1; done
+TOKEN2=$(sed -n 's/.*Access code: //p' "$TMP/server2.log" | head -1)
+for i in $(seq 20); do curl -s -o /dev/null "http://127.0.0.1:$((PORT + 1))/zzzzzz"; done
+code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$((PORT + 1))/$TOKEN2")
+[[ "$code" == 403 ]] && ok "locks out after 20 wrong codes" || bad "locks out after 20 wrong codes (got $code)"
+kill "$SERVER_PID"; wait "$SERVER_PID" 2>/dev/null; SERVER_PID=
 
 echo
 echo "$pass passed, $fail failed"
